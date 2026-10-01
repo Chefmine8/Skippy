@@ -40,10 +40,11 @@ object Auth {
             conn.instanceFollowRedirects = false
             conn.setRequestProperty("Cookie", cookies)
             conn.connect()
-            
+
             if (conn.responseCode == 302) {
                 val location = conn.getHeaderField("Location") ?: return null
                 val frag = location.substringAfter('#', "")
+
                 val token = frag.split('&').find { it.startsWith("id_token=") }?.substringAfter("id_token=")
                 if (token != null) {
                     saveManual(ctx, token)
@@ -68,8 +69,7 @@ object Auth {
     }
 
     /** JWT "exp" claim, when the token is a JWT. Unknown format = assume valid. */
-    private fun isExpired(token: String): Boolean = try {
-        val payload = token.split(".")[1]
+    private fun isExpired(payload: String): Boolean = try {
         val json = JSONObject(String(Base64.decode(payload, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)))
         json.optLong("exp", Long.MAX_VALUE / 1000) * 1000 < System.currentTimeMillis() + 60_000
     } catch (e: Exception) {

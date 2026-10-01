@@ -5,6 +5,7 @@ package com.skippy.app
 import android.annotation.SuppressLint
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
@@ -228,6 +229,7 @@ fun AuthSection(ui: UiState, vm: AppViewModel, before: () -> Unit = {}, onSignIn
     var token by remember { mutableStateOf("") }
     var debugToken by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             stringResource(
@@ -261,6 +263,11 @@ fun AuthSection(ui: UiState, vm: AppViewModel, before: () -> Unit = {}, onSignIn
         AlertDialog(
             onDismissRequest = { debugToken = null },
             confirmButton = { TextButton(onClick = { debugToken = null }) { Text("OK") } },
+            dismissButton = {
+                TextButton(onClick = {
+                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(tok))
+                }) { Text("Copier") }
+            },
             title = { Text("Debug Token") },
             text = { Text(tok) }
         )
@@ -1005,28 +1012,21 @@ fun MicrosoftAuthDialog(
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
                     webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                            val url = request.url.toString()
-                            if (url.startsWith("https://zeus.ionis-it.com")) {
-                                val fragment = request.url.fragment ?: ""
-                                val token = fragment.split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
-                                if (token != null) {
-                                    onTokenReceived(token)
-                                    return true
+                        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                            val auth = request.requestHeaders?.entries?.firstOrNull { it.key.equals("Authorization", ignoreCase = true) }?.value
+                            if (auth != null) {
+                                val token = if (auth.startsWith("Bearer ", ignoreCase = true)) {
+                                    auth.substring(7).trim()
+                                } else {
+                                    auth.trim()
+                                }
+                                if (token.startsWith("eyJhbGciOiJIUzI1Ni")) {
+                                    view.post {
+                                        onTokenReceived(token)
+                                    }
                                 }
                             }
-                            return super.shouldOverrideUrlLoading(view, request)
-                        }
-
-                        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                            if (url.startsWith("https://zeus.ionis-it.com") && url.contains("id_token=")) {
-                                val token = url.substringAfter("#", "").split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
-                                if (token != null) {
-                                    onTokenReceived(token)
-                                    view.stopLoading()
-                                }
-                            }
-                            super.onPageStarted(view, url, favicon)
+                            return super.shouldInterceptRequest(view, request)
                         }
                     }
                     CookieManager.getInstance().setAcceptCookie(true)
