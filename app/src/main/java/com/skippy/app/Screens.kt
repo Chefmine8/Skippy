@@ -1011,7 +1011,57 @@ fun MicrosoftAuthDialog(
             factory = { context ->
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    var tokenDelivered = false
+
+                    val checkScript = """
+                        (function() {
+                            try {
+                                let m = document.cookie.match(/(eyJhbGciOiJIUzI1Ni[\w-]+\.[\w-]+\.[\w-]+)/);
+                                if (m) return m[1];
+                                for (let i = 0; i < localStorage.length; i++) {
+                                    let val = localStorage.getItem(localStorage.key(i));
+                                    let m = val ? val.match(/(eyJhbGciOiJIUzI1Ni[\w-]+\.[\w-]+\.[\w-]+)/) : null;
+                                    if (m) return m[1];
+                                }
+                                for (let i = 0; i < sessionStorage.length; i++) {
+                                    let val = sessionStorage.getItem(sessionStorage.key(i));
+                                    let m = val ? val.match(/(eyJhbGciOiJIUzI1Ni[\w-]+\.[\w-]+\.[\w-]+)/) : null;
+                                    if (m) return m[1];
+                                }
+                            } catch(e) {}
+                            return null;
+                        })();
+                    """.trimIndent()
+
+                    val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                    val checkRunnable = object : Runnable {
+                        override fun run() {
+                            if (!isAttachedToWindow || tokenDelivered) return
+                            evaluateJavascript(checkScript) { result ->
+                                if (!tokenDelivered && result != null && result != "null") {
+                                    val token = result.trim('"')
+                                    if (token.startsWith("eyJhbGciOiJIUzI1Ni")) {
+                                        tokenDelivered = true
+                                        onTokenReceived(token)
+                                    }
+                                }
+                                if (!tokenDelivered && isAttachedToWindow) {
+                                    handler.postDelayed(this, 1000)
+                                }
+                            }
+                        }
+                    }
+
                     webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView, url: String) {
+                            super.onPageFinished(view, url)
+                            if (!tokenDelivered && isAttachedToWindow) {
+                                handler.removeCallbacks(checkRunnable)
+                                handler.postDelayed(checkRunnable, 1000)
+                            }
+                        }
+
                         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                             val auth = request.requestHeaders?.entries?.firstOrNull { it.key.equals("Authorization", ignoreCase = true) }?.value
                             if (auth != null) {
@@ -1022,7 +1072,10 @@ fun MicrosoftAuthDialog(
                                 }
                                 if (token.startsWith("eyJhbGciOiJIUzI1Ni")) {
                                     view.post {
-                                        onTokenReceived(token)
+                                        if (!tokenDelivered) {
+                                            tokenDelivered = true
+                                            onTokenReceived(token)
+                                        }
                                     }
                                 }
                             }
@@ -1030,6 +1083,7 @@ fun MicrosoftAuthDialog(
                         }
                     }
                     CookieManager.getInstance().setAcceptCookie(true)
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     loadUrl("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=39cd5b3d-08c6-4e1b-8730-6603bc77ba45&response_type=id_token+token&redirect_uri=https%3A%2F%2Fzeus.ionis-it.com%2FofficeConnect%2F&scope=openid+profile+email&nonce=12345")
                 }
             }
