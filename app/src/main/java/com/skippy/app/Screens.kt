@@ -226,6 +226,8 @@ fun SetupScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
 @Composable
 fun AuthSection(ui: UiState, vm: AppViewModel, before: () -> Unit = {}, onSignIn: () -> Unit) {
     var token by remember { mutableStateOf("") }
+    var debugToken by remember { mutableStateOf<String?>(null) }
+    val ctx = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             stringResource(
@@ -252,7 +254,16 @@ fun AuthSection(ui: UiState, vm: AppViewModel, before: () -> Unit = {}, onSignIn
         ) { Text(stringResource(R.string.save_token)) }
         if (ui.settings.authMode.isNotEmpty()) {
             TextButton(onClick = { vm.signOut() }) { Text(stringResource(R.string.sign_out)) }
+            TextButton(onClick = { debugToken = TokenStore.load(ctx) ?: "None" }) { Text("Debug Token") }
         }
+    }
+    debugToken?.let { tok ->
+        AlertDialog(
+            onDismissRequest = { debugToken = null },
+            confirmButton = { TextButton(onClick = { debugToken = null }) { Text("OK") } },
+            title = { Text("Debug Token") },
+            text = { Text(tok) }
+        )
     }
 }
 

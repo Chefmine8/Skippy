@@ -73,7 +73,7 @@ object Auth {
         val json = JSONObject(String(Base64.decode(payload, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)))
         json.optLong("exp", Long.MAX_VALUE / 1000) * 1000 < System.currentTimeMillis() + 60_000
     } catch (e: Exception) {
-        true
+        false
     }
 }
 
