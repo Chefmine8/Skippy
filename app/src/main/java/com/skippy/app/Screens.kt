@@ -1066,7 +1066,9 @@ fun MicrosoftAuthDialog(
                         }
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                        loadUrl("https://zeus.ionis-it.com/")
+                        val msUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=39cd5b3d-08c6-4e1b-8730-6603bc77ba45&response_type=id_token+token&redirect_uri=https%3A%2F%2Fzeus.ionis-it.com%2FofficeConnect%2F&scope=openid+profile+email&nonce=12345"
+                        val html = "<html><body><script>sessionStorage.setItem('nonce', '12345'); window.location.href = '$msUrl';</script></body></html>"
+                        loadDataWithBaseURL("https://zeus.ionis-it.com/", html, "text/html", "UTF-8", null)
                     }
                 }
             }
