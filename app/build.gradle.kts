@@ -14,9 +14,6 @@ android {
         targetSdk = 35
         versionCode = 2
         versionName = "2.0"
-        // Base64 SHA-1 of your signing certificate (see README). Put it in gradle.properties as MSAL_SIGNATURE_HASH.
-        manifestPlaceholders["msalSignatureHash"] =
-            (project.findProperty("MSAL_SIGNATURE_HASH") as String?) ?: "REPLACE_WITH_SIGNATURE_HASH"
     }
     buildTypes {
         release { isMinifyEnabled = false }
@@ -40,6 +37,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
-    implementation("com.microsoft.identity.client:msal:6.0.1")
     testImplementation("junit:junit:4.13.2")
 }

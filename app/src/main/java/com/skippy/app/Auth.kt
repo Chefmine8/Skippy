@@ -4,9 +4,6 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import com.microsoft.identity.client.AcquireTokenSilentParameters
-import com.microsoft.identity.client.ISingleAccountPublicClientApplication
-import com.microsoft.identity.client.PublicClientApplication
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -18,42 +15,41 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Microsoft token access.
- *  - "msal": MSAL single-account app, silent refresh (works in the background worker).
- *  - "manual": a token pasted by the user, stored encrypted with an Android Keystore key.
+ *  - "manual": a token from WebView or pasted, stored encrypted with an Android Keystore key.
  */
 object Auth {
-    /** Scopes requested by MSAL. Must match what the Zeus API accepts (see README). */
-    val SCOPES: List<String> = listOf("User.Read")
-
-    @Volatile private var pca: ISingleAccountPublicClientApplication? = null
-
-    /** Blocking (reads the config and may touch disk): call from a background thread only. */
-    fun app(ctx: Context): ISingleAccountPublicClientApplication =
-        pca ?: synchronized(this) {
-            pca ?: PublicClientApplication
-                .createSingleAccountPublicClientApplication(ctx.applicationContext, R.raw.auth_config)
-                .also { pca = it }
-        }
-
     /** A valid access token, or null when signed out / expired / interaction required. */
     suspend fun accessToken(ctx: Context): String? = withContext(Dispatchers.IO) {
-        when (Repo.get(ctx).settings().authMode) {
-            "msal" -> silent(ctx)
-            "manual" -> TokenStore.load(ctx)?.takeIf { !isExpired(it) }
-            else -> null
+        val mode = Repo.get(ctx).settings().authMode
+        if (mode != "manual") return@withContext null
+        val stored = TokenStore.load(ctx)
+        if (stored != null && !isExpired(stored)) {
+            stored
+        } else {
+            silent(ctx)
         }
     }
 
-    private fun silent(ctx: Context): String? = try {
-        val a = app(ctx)
-        val account = a.currentAccount?.currentAccount
-        if (account == null) null else {
-            val params = AcquireTokenSilentParameters.Builder()
-                .withScopes(SCOPES)
-                .forAccount(account)
-                .fromAuthority(account.authority)
-                .build()
-            a.acquireTokenSilent(params).accessToken
+    private suspend fun silent(ctx: Context): String? = try {
+        val cookies = withContext(Dispatchers.Main) {
+            android.webkit.CookieManager.getInstance().getCookie("https://login.microsoftonline.com")
+        }
+        if (cookies.isNullOrEmpty()) null else {
+            val url = java.net.URL("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=39cd5b3d-08c6-4e1b-8730-6603bc77ba45&response_type=id_token+token&redirect_uri=https%3A%2F%2Fzeus.ionis-it.com%2FofficeConnect%2F&scope=openid+profile+email&nonce=12345&prompt=none")
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.instanceFollowRedirects = false
+            conn.setRequestProperty("Cookie", cookies)
+            conn.connect()
+            
+            if (conn.responseCode == 302) {
+                val location = conn.getHeaderField("Location") ?: return null
+                val frag = location.substringAfter('#', "")
+                val token = frag.split('&').find { it.startsWith("access_token=") }?.substringAfter("access_token=")
+                if (token != null) {
+                    saveManual(ctx, token)
+                    token
+                } else null
+            } else null
         }
     } catch (e: Exception) {
         null
@@ -66,8 +62,8 @@ object Auth {
     }
 
     suspend fun signOut(ctx: Context) = withContext(Dispatchers.IO) {
-        runCatching { app(ctx).signOut() }
         TokenStore.clear(ctx)
+        withContext(Dispatchers.Main) { android.webkit.CookieManager.getInstance().removeAllCookies(null) }
         Repo.get(ctx).setAuthMode("")
     }
 

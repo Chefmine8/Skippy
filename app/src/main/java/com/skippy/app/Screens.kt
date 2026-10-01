@@ -2,6 +2,14 @@
 
 package com.skippy.app
 
+import android.annotation.SuppressLint
+import android.webkit.CookieManager
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -100,11 +108,13 @@ fun SkippyTheme(content: @Composable () -> Unit) =
 // ---------------------------------------------------------------------------------------------
 
 @Composable
-fun App(vm: AppViewModel, onSignIn: () -> Unit) {
+fun App(vm: AppViewModel) {
     val ui by vm.ui.collectAsState()
     val details by vm.details.collectAsState()
     val snack = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var showWebView by rememberSaveable { mutableStateOf(false) }
+    val onSignIn = { showWebView = true }
     val ready = ui.settings.groupId > 0 && ui.settings.authMode.isNotEmpty()
 
     // Refresh "now" every minute so sessions flip from upcoming to past while the app is open.
@@ -165,6 +175,15 @@ fun App(vm: AppViewModel, onSignIn: () -> Unit) {
         }
     }
     details?.let { DetailsDialog(it) { vm.closeDetails() } }
+    if (showWebView) {
+        MicrosoftAuthDialog(
+            onTokenReceived = { token ->
+                vm.saveManualToken(token)
+                showWebView = false
+            },
+            onDismiss = { showWebView = false }
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -955,5 +974,54 @@ fun Stepper(label: String, value: Int, min: Int, max: Int, step: Int = 1, suffix
         OutlinedButton(onClick = { onChange((value - step).coerceAtLeast(min)) }) { Text("−") }
         Text("$value$suffix", Modifier.padding(horizontal = 12.dp), fontWeight = FontWeight.Bold)
         OutlinedButton(onClick = { onChange((value + step).coerceAtMost(max)) }) { Text("+") }
+    }
+}
+
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+fun MicrosoftAuthDialog(
+    onTokenReceived: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                WebView(context).apply {
+                    settings.javaScriptEnabled = true
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                            val url = request.url.toString()
+                            if (url.startsWith("https://zeus.ionis-it.com")) {
+                                val fragment = request.url.fragment ?: ""
+                                val token = fragment.split("&").find { it.startsWith("access_token=") }?.substringAfter("=")
+                                if (token != null) {
+                                    onTokenReceived(token)
+                                    return true
+                                }
+                            }
+                            return super.shouldOverrideUrlLoading(view, request)
+                        }
+
+                        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                            if (url.startsWith("https://zeus.ionis-it.com") && url.contains("access_token=")) {
+                                val token = url.substringAfter("#", "").split("&").find { it.startsWith("access_token=") }?.substringAfter("=")
+                                if (token != null) {
+                                    onTokenReceived(token)
+                                    view.stopLoading()
+                                }
+                            }
+                            super.onPageStarted(view, url, favicon)
+                        }
+                    }
+                    CookieManager.getInstance().setAcceptCookie(true)
+                    loadUrl("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=39cd5b3d-08c6-4e1b-8730-6603bc77ba45&response_type=id_token+token&redirect_uri=https%3A%2F%2Fzeus.ionis-it.com%2FofficeConnect%2F&scope=openid+profile+email&nonce=12345")
+                }
+            }
+        )
     }
 }

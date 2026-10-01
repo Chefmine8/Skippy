@@ -120,12 +120,6 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
     // ---- authentication -------------------------------------------------------------------
 
-    fun onMsalSignedIn() {
-        repo.setAuthMode("msal")
-        reload()
-        sync(full = true)
-    }
-
     fun saveManualToken(token: String) {
         viewModelScope.launch {
             Auth.saveManual(app, token)

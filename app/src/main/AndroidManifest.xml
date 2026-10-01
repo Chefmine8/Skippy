@@ -22,20 +22,7 @@
             </intent-filter>
         </activity>
 
-        <!-- MSAL redirect: msauth://<package>/<raw base64 signature hash> -->
-        <activity
-            android:name="com.microsoft.identity.client.BrowserTabActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="msauth"
-                    android:host="com.skippy.app"
-                    android:path="/${msalSignatureHash}" />
-            </intent-filter>
-        </activity>
+
 
         <receiver
             android:name=".AttendanceReceiver"
