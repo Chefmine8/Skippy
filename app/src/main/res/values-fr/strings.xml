@@ -18,13 +18,15 @@
     <string name="auth_none">Non connecté</string>
     <string name="auth_msal">Connecté avec Microsoft</string>
     <string name="auth_manual">Token collé (valable en général environ 1 h)</string>
-    <string name="auth_failed">Échec de la connexion : %1$s</string>
     <string name="auth_expired">Session expirée. Reconnecte-toi ou colle un nouveau token.</string>
 
     <string name="save_sync">Enregistrer</string>
     <string name="sync_now">Synchroniser</string>
     <string name="sync_full">Recharger tout l\'historique</string>
-    <string name="sync_ok">%1$d séances chargées</string>
+    <plurals name="sync_ok">
+        <item quantity="one">%1$d séance chargée</item>
+        <item quantity="other">%1$d séances chargées</item>
+    </plurals>
     <string name="sync_fail">Échec de la synchronisation : %1$s</string>
     <string name="error_generic">Erreur : %1$s</string>
     <string name="last_sync">Dernière synchro : %1$s</string>
@@ -32,7 +34,6 @@
 
     <string name="reco_title">Suggestion</string>
     <string name="reco_skip">Tu peux sécher %1$s à %2$s</string>
-    <string name="reco_none">Rien à sécher sans risque aujourd\'hui, mieux vaut y aller.</string>
     <string name="no_sessions_today">Pas de cours aujourd\'hui</string>
     <string name="alerts_title">Alertes de présence</string>
 
@@ -46,19 +47,34 @@
     <string name="status_justified">Justifié</string>
     <string name="online">En ligne</string>
 
-    <string name="warn_left">%1$s : %2$d absence(s) possible(s)</string>
+    <plurals name="warn_left">
+        <item quantity="one">%1$s : %2$d absence possible</item>
+        <item quantity="other">%1$s : %2$d absences possibles</item>
+    </plurals>
     <string name="warn_below">%1$s : hors budget pour tout le semestre</string>
 
     <string name="rule_note">Chaque matière et chaque type d\'activité est compté sur tout le semestre : le total des séances s\'arrête à l\'examen de la matière dès qu\'il apparaît dans les données. Le budget d\'absences est fixé une fois pour toutes (le %% requis de ce total) et ne remonte pas. Les séances non renseignées ne comptent jamais contre toi tant que tu n\'y as pas répondu. Justifié compte comme présent.</string>
     <string name="stats_line">%1$d/%2$d présent · %3$d %%</string>
     <string name="no_data">Aucune séance renseignée</string>
-    <string name="margin_skips">Tu peux encore sécher %1$d</string>
+    <plurals name="margin_skips">
+        <item quantity="one">Tu peux encore sécher %1$d</item>
+        <item quantity="other">Tu peux encore en sécher %1$d</item>
+    </plurals>
     <string name="margin_zero">Ne sèche pas la prochaine</string>
     <string name="margin_over">Hors budget : ne peut plus être rattrapé ce semestre</string>
-    <string name="total_line">%1$d séances prévues avant l\'examen · budget d\'absences : %2$d</string>
-    <string name="total_line_no_exam">%1$d séances prévues jusqu\'au dernier cours · budget d\'absences : %2$d</string>
+    <plurals name="total_line">
+        <item quantity="one">%1$d séance prévue avant l\'examen · budget d\'absences : %2$d</item>
+        <item quantity="other">%1$d séances prévues avant l\'examen · budget d\'absences : %2$d</item>
+    </plurals>
+    <plurals name="total_line_no_exam">
+        <item quantity="one">%1$d séance prévue jusqu\'au dernier cours · budget d\'absences : %2$d</item>
+        <item quantity="other">%1$d séances prévues jusqu\'au dernier cours · budget d\'absences : %2$d</item>
+    </plurals>
     <string name="exam_not_found">Examen pas encore dans les données : cette estimation peut encore augmenter.</string>
-    <string name="pending">%1$d à renseigner</string>
+    <plurals name="pending">
+        <item quantity="one">%1$d à renseigner</item>
+        <item quantity="other">%1$d à renseigner</item>
+    </plurals>
     <string name="pref_label">Pour choisir quoi sécher</string>
     <string name="pref_important">Important</string>
     <string name="pref_normal">Normal</string>

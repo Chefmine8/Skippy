@@ -168,7 +168,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             syncing = false
             progress = null
             message = result.fold(
-                onSuccess = { app.getString(R.string.sync_ok, it) },
+                onSuccess = { app.resources.getQuantityString(R.plurals.sync_ok, it, it) },
                 onFailure = { e ->
                     if (e is ZeusAuthException) app.getString(R.string.auth_expired)
                     else app.getString(R.string.sync_fail, e.message ?: "?")

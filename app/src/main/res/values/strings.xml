@@ -18,13 +18,15 @@
     <string name="auth_none">Not signed in</string>
     <string name="auth_msal">Signed in with Microsoft</string>
     <string name="auth_manual">Using a pasted token (usually valid about 1 h)</string>
-    <string name="auth_failed">Sign-in failed: %1$s</string>
     <string name="auth_expired">Session expired. Sign in again or paste a new token.</string>
 
     <string name="save_sync">Save</string>
     <string name="sync_now">Sync now</string>
     <string name="sync_full">Reload full history</string>
-    <string name="sync_ok">%1$d sessions loaded</string>
+    <plurals name="sync_ok">
+        <item quantity="one">%1$d session loaded</item>
+        <item quantity="other">%1$d sessions loaded</item>
+    </plurals>
     <string name="sync_fail">Sync failed: %1$s</string>
     <string name="error_generic">Error: %1$s</string>
     <string name="last_sync">Last sync: %1$s</string>
@@ -32,7 +34,6 @@
 
     <string name="reco_title">Suggestion</string>
     <string name="reco_skip">You can skip %1$s at %2$s</string>
-    <string name="reco_none">No safe skip today, better go to class.</string>
     <string name="no_sessions_today">No classes today</string>
     <string name="alerts_title">Attendance alerts</string>
 
@@ -46,19 +47,34 @@
     <string name="status_justified">Excused</string>
     <string name="online">Online</string>
 
-    <string name="warn_left">%1$s: %2$d skip(s) left</string>
+    <plurals name="warn_left">
+        <item quantity="one">%1$s: %2$d skip left</item>
+        <item quantity="other">%1$s: %2$d skips left</item>
+    </plurals>
     <string name="warn_below">%1$s: over budget for the whole term</string>
 
     <string name="rule_note">Each subject and activity type is counted over the whole term: total sessions are capped at that subject\'s first Exam session once it is in the data. The skip budget is fixed once (required %% of that total) and does not grow back. Unanswered sessions never count against you until you answer them. Excused counts as present.</string>
     <string name="stats_line">%1$d/%2$d present · %3$d%%</string>
     <string name="no_data">No answered session yet</string>
-    <string name="margin_skips">You can skip %1$d more</string>
+    <plurals name="margin_skips">
+        <item quantity="one">You can skip %1$d more</item>
+        <item quantity="other">You can skip %1$d more</item>
+    </plurals>
     <string name="margin_zero">Do not skip the next one</string>
     <string name="margin_over">Over budget: can no longer be recovered this term</string>
-    <string name="total_line">%1$d sessions planned before the exam · skip budget: %2$d</string>
-    <string name="total_line_no_exam">%1$d sessions planned until the last class · skip budget: %2$d</string>
+    <plurals name="total_line">
+        <item quantity="one">%1$d session planned before the exam · skip budget: %2$d</item>
+        <item quantity="other">%1$d sessions planned before the exam · skip budget: %2$d</item>
+    </plurals>
+    <plurals name="total_line_no_exam">
+        <item quantity="one">%1$d session planned until the last class · skip budget: %2$d</item>
+        <item quantity="other">%1$d sessions planned until the last class · skip budget: %2$d</item>
+    </plurals>
     <string name="exam_not_found">Exam not in the data yet: this estimate may still rise.</string>
-    <string name="pending">%1$d to fill in</string>
+    <plurals name="pending">
+        <item quantity="one">%1$d to fill in</item>
+        <item quantity="other">%1$d to fill in</item>
+    </plurals>
     <string name="pref_label">When choosing what to skip</string>
     <string name="pref_important">Important</string>
     <string name="pref_normal">Normal</string>

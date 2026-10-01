@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 /**
  * Attendance figures for one (subject, activity type) pair, computed over the WHOLE term:
@@ -29,7 +30,7 @@ data class SubjectStats(
     val key: String get() = Stats.key(subject, typeId)
     val title: String get() = "$subject · $typeLabel"
     val answered: Int get() = present + absent
-    val rate: Int? get() = if (answered == 0) null else Math.round(present * 100f / answered)
+    val rate: Int? get() = if (answered == 0) null else (present * 100f / answered).roundToInt()
 }
 
 enum class Badge { SKIP_SUGGESTED, CAN_SKIP, ATTEND, IMPORTANT }
@@ -85,7 +86,7 @@ object Stats {
                 } else up++
             }
             val total = withinTerm.size
-            val allowed = Math.floorDiv(total * (100 - pct), 100)
+            val allowed = total * (100 - pct) / 100
             SubjectStats(
                 first.subject, first.typeId, typeLabel(first.typeId),
                 p, a, pend, up, total, allowed, allowed - a, examFound, prefs[first.subject] ?: 1,

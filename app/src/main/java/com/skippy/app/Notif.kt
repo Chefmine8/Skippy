@@ -35,7 +35,7 @@ object Notif {
 
     fun warnText(ctx: Context, st: SubjectStats, pct: Int): String =
         if (st.margin < 0) ctx.getString(R.string.warn_below, st.title)
-        else ctx.getString(R.string.warn_left, st.title, st.margin)
+        else ctx.resources.getQuantityString(R.plurals.warn_left, st.margin, st.title, st.margin)
 
     private fun openApp(ctx: Context): PendingIntent =
         PendingIntent.getActivity(

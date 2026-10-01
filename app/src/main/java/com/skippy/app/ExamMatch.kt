@@ -11,7 +11,9 @@ object ExamMatch {
     const val AUTO_MAPPING = "__AUTO__"
     const val NONE_MAPPING = "__NONE__"
 
-    private fun squash(s: String): String = Repo.plain(s).replace(Regex("[^a-z0-9]+"), "")
+    private val NON_ALPHANUM_REGEX = Regex("[^a-z0-9]+")
+
+    private fun squash(s: String): String = Repo.plain(s).replace(NON_ALPHANUM_REGEX, "")
 
     fun isExamTitle(subject: String): Boolean = Repo.plain(subject).startsWith("exam")
 

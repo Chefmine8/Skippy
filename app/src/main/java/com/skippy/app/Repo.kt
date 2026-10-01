@@ -1,5 +1,6 @@
 package com.skippy.app
 
+import android.annotation.SuppressLint
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,11 +13,13 @@ import java.time.ZoneOffset
 import java.time.temporal.TemporalAdjusters
 
 /** Local storage (SharedPreferences) + synchronisation with Zeus. */
+@SuppressLint("StaticFieldLeak")
 class Repo private constructor(ctx: Context) {
     private val appCtx = ctx.applicationContext
     private val sp = appCtx.getSharedPreferences("skippy", Context.MODE_PRIVATE)
 
     companion object {
+        private val DIACRITICS_REGEX = Regex("\\p{M}+")
         @Volatile private var inst: Repo? = null
 
         fun get(ctx: Context): Repo =
@@ -24,7 +27,7 @@ class Repo private constructor(ctx: Context) {
 
         /** Lowercase, no accents: "Férié" -> "ferie". */
         fun plain(s: String): String =
-            Normalizer.normalize(s, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").lowercase().trim()
+            Normalizer.normalize(s, Normalizer.Form.NFD).replace(DIACRITICS_REGEX, "").lowercase().trim()
 
         /** 1 September of the current school year. */
         fun defaultRentree(): String {
@@ -102,22 +105,26 @@ class Repo private constructor(ctx: Context) {
 
     // ---- activity type names --------------------------------------------------------------
 
+    private var cachedTypeNames: Map<Int, String>? = null
     fun typeNames(): Map<Int, String> {
+        cachedTypeNames?.let { return it }
         val o = JSONObject(sp.getString("types", "{}"))
         val map = HashMap<Int, String>()
         for (k in o.keys()) k.toIntOrNull()?.let { map[it] = o.getString(k) }
-        return map
+        return map.also { cachedTypeNames = it }
     }
 
     fun typeName(id: Int): String = typeName(typeNames(), id)
 
     // ---- exam boundaries --------------------------------------------------------------------
 
+    private var cachedExamMappings: Map<String, String>? = null
     fun examMappings(): Map<String, String> {
+        cachedExamMappings?.let { return it }
         val o = JSONObject(sp.getString("examMappings", "{}"))
         val map = HashMap<String, String>()
         for (k in o.keys()) map[k] = o.getString(k)
-        return map
+        return map.also { cachedExamMappings = it }
     }
 
     fun setExamMapping(subject: String, examSubject: String) {
@@ -128,6 +135,7 @@ class Repo private constructor(ctx: Context) {
             o.put(subject, examSubject)
         }
         sp.edit().putString("examMappings", o.toString()).apply()
+        cachedExamMappings = null
     }
 
     fun availableExams(): List<String> {
@@ -152,13 +160,16 @@ class Repo private constructor(ctx: Context) {
         val o = JSONObject(sp.getString("types", "{}"))
         o.put(id.toString(), label.trim())
         sp.edit().putString("types", o.toString()).apply()
+        cachedTypeNames = null
     }
 
     // ---- excluded subjects (attendance tracking turned off) --------------------------------
 
+    private var cachedExcludedSubjects: Set<String>? = null
     fun excludedSubjects(): Set<String> {
+        cachedExcludedSubjects?.let { return it }
         val arr = JSONArray(sp.getString("excludedSubjects", "[]"))
-        return (0 until arr.length()).map { arr.getString(it) }.toSet()
+        return (0 until arr.length()).map { arr.getString(it) }.toSet().also { cachedExcludedSubjects = it }
     }
 
     fun setSubjectExcluded(subject: String, excluded: Boolean) {
@@ -167,11 +178,15 @@ class Repo private constructor(ctx: Context) {
         val arr = JSONArray()
         current.forEach { arr.put(it) }
         sp.edit().putString("excludedSubjects", arr.toString()).apply()
+        cachedExcludedSubjects = null
     }
 
     // ---- sessions -------------------------------------------------------------------------
 
+    private var cachedRawSessions: List<Session>? = null
+
     private fun rawSessions(): List<Session> {
+        cachedRawSessions?.let { return it }
         val arr = JSONArray(sp.getString("sessions2", "[]"))
         return (0 until arr.length()).map { i ->
             val o = arr.getJSONObject(i)
@@ -181,12 +196,13 @@ class Repo private constructor(ctx: Context) {
                 online = o.optBoolean("o", false), teachers = o.optString("h", ""),
                 groups = o.optString("g", ""),
             )
-        }
+        }.also { cachedRawSessions = it }
     }
 
     fun allRawSessions(): List<Session> = rawSessions()
 
     private fun saveRaw(list: List<Session>) {
+        cachedRawSessions = list
         val arr = JSONArray()
         list.forEach {
             arr.put(
@@ -268,34 +284,40 @@ class Repo private constructor(ctx: Context) {
 
     // ---- attendance -----------------------------------------------------------------------
 
+    private var cachedAttendance: Map<String, Status>? = null
     fun attendance(): Map<String, Status> {
+        cachedAttendance?.let { return it }
         val o = JSONObject(sp.getString("att", "{}"))
         val map = HashMap<String, Status>()
         for (k in o.keys()) {
             map[k] = Status.from(o.getString(k)) ?: continue
         }
-        return map
+        return map.also { cachedAttendance = it }
     }
 
     fun setStatus(uid: String, status: Status?) {
         val o = JSONObject(sp.getString("att", "{}"))
         if (status == null) o.remove(uid) else o.put(uid, status.code)
         sp.edit().putString("att", o.toString()).apply()
+        cachedAttendance = null
     }
 
     // ---- per-subject preference: 0 = important, 1 = normal, 2 = skip first ----------------
 
+    private var cachedPrefs: Map<String, Int>? = null
     fun prefs(): Map<String, Int> {
+        cachedPrefs?.let { return it }
         val o = JSONObject(sp.getString("prefs", "{}"))
         val map = HashMap<String, Int>()
         for (k in o.keys()) map[k] = o.getInt(k)
-        return map
+        return map.also { cachedPrefs = it }
     }
 
     fun setPref(subject: String, pref: Int) {
         val o = JSONObject(sp.getString("prefs", "{}"))
         o.put(subject, pref)
         sp.edit().putString("prefs", o.toString()).apply()
+        cachedPrefs = null
     }
 
     // ---- notification bookkeeping ---------------------------------------------------------

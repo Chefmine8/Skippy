@@ -88,6 +88,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -708,9 +709,9 @@ private fun StatRow(st: SubjectStats) {
         }
         if (st.total > 0) {
             val totalText = if (st.mappedExamTitle != null) {
-                stringResource(R.string.total_line, st.total, st.allowed)
+                pluralStringResource(R.plurals.total_line, st.total, st.total, st.allowed)
             } else {
-                stringResource(R.string.total_line_no_exam, st.total, st.allowed)
+                pluralStringResource(R.plurals.total_line_no_exam, st.total, st.total, st.allowed)
             }
             Text(totalText, style = MaterialTheme.typography.bodySmall)
             LinearProgressIndicator(
@@ -719,7 +720,7 @@ private fun StatRow(st: SubjectStats) {
                 modifier = Modifier.fillMaxWidth(),
             )
             val msg = when {
-                st.margin >= 1 -> stringResource(R.string.margin_skips, st.margin)
+                st.margin >= 1 -> pluralStringResource(R.plurals.margin_skips, st.margin, st.margin)
                 st.margin == 0 -> stringResource(R.string.margin_zero)
                 else -> stringResource(R.string.margin_over)
             }
@@ -729,7 +730,7 @@ private fun StatRow(st: SubjectStats) {
             Text(stringResource(R.string.exam_not_found), style = MaterialTheme.typography.bodySmall, color = Amber)
         }
         if (st.pending > 0) {
-            Text(stringResource(R.string.pending, st.pending), style = MaterialTheme.typography.bodySmall)
+            Text(pluralStringResource(R.plurals.pending, st.pending, st.pending), style = MaterialTheme.typography.bodySmall)
         }
     }
 }

@@ -24,6 +24,7 @@ class ZeusHttpException(val code: Int) : Exception("HTTP $code")
 object ZeusApi {
     private const val BASE = "https://zeus.ionis-it.com/"
     private val requestDate = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC)
+    private val WHITESPACE_REGEX = Regex("\\s+")
 
     /** POST api/reservation/filter/displayable : reservations of one group between [from] and [to]. */
     suspend fun reservations(token: String, from: Instant, to: Instant, groupIds: Set<Int>): List<Session> =
@@ -111,7 +112,7 @@ object ZeusApi {
         val end = parseInstant(o.optString("endDate")) ?: start
         return Session(
             uid = id.toString(),
-            subject = o.optString("name").replace(Regex("\\s+"), " ").trim(),
+            subject = o.optString("name").replace(WHITESPACE_REGEX, " ").trim(),
             typeId = o.optInt("idType", 0),
             start = start,
             end = end,
