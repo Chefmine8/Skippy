@@ -44,7 +44,7 @@ object Auth {
             if (conn.responseCode == 302) {
                 val location = conn.getHeaderField("Location") ?: return null
                 val frag = location.substringAfter('#', "")
-                val token = frag.split('&').find { it.startsWith("access_token=") }?.substringAfter("access_token=")
+                val token = frag.split('&').find { it.startsWith("id_token=") }?.substringAfter("id_token=")
                 if (token != null) {
                     saveManual(ctx, token)
                     token
@@ -73,7 +73,7 @@ object Auth {
         val json = JSONObject(String(Base64.decode(payload, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)))
         json.optLong("exp", Long.MAX_VALUE / 1000) * 1000 < System.currentTimeMillis() + 60_000
     } catch (e: Exception) {
-        false
+        true
     }
 }
 

@@ -998,7 +998,7 @@ fun MicrosoftAuthDialog(
                             val url = request.url.toString()
                             if (url.startsWith("https://zeus.ionis-it.com")) {
                                 val fragment = request.url.fragment ?: ""
-                                val token = fragment.split("&").find { it.startsWith("access_token=") }?.substringAfter("=")
+                                val token = fragment.split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
                                 if (token != null) {
                                     onTokenReceived(token)
                                     return true
@@ -1008,8 +1008,8 @@ fun MicrosoftAuthDialog(
                         }
 
                         override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                            if (url.startsWith("https://zeus.ionis-it.com") && url.contains("access_token=")) {
-                                val token = url.substringAfter("#", "").split("&").find { it.startsWith("access_token=") }?.substringAfter("=")
+                            if (url.startsWith("https://zeus.ionis-it.com") && url.contains("id_token=")) {
+                                val token = url.substringAfter("#", "").split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
                                 if (token != null) {
                                     onTokenReceived(token)
                                     view.stopLoading()
