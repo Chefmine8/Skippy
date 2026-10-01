@@ -99,7 +99,7 @@
     <string name="exclude_subject">Exclure du suivi</string>
     <string name="include_subject">Suivre à nouveau</string>
     <string name="excluded_title">Matières exclues</string>
-    <string name="excluded_hint">Elles ne comptent pas dans la règle des 60 % et n\'apparaissent plus dans Aujourd\'hui ni Séances.</string>
+    <string name="excluded_hint">Elles ne comptent pas dans la règle des 60 %% et n\'apparaissent plus dans Aujourd\'hui ni Séances.</string>
 
     <string name="exam_mapping_title">Correspondance des examens</string>
     <string name="exam_mapping_hint">Associe chaque cours à son examen dans l\'emploi du temps pour calculer le nombre exact de séances avant l\'examen.</string>

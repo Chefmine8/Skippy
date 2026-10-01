@@ -81,6 +81,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -1010,65 +1012,66 @@ fun MicrosoftAuthDialog(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
                 object : WebView(context) {
-                    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
                     private var tokenDelivered = false
-                    private val checkScript = """
-                        (function() {
-                            try {
-                                var authStr = localStorage.getItem('ZEUS-AUTH');
-                                if (authStr) {
-                                    var auth = JSON.parse(authStr);
-                                    if (auth && auth.token) {
-                                        return auth.token;
-                                    }
-                                }
-                            } catch(e) {}
-                            return null;
-                        })();
-                    """.trimIndent()
-
-                    private val checkRunnable = object : Runnable {
-                        override fun run() {
-                            if (!isAttachedToWindow || tokenDelivered) return
-                            evaluateJavascript(checkScript) { result ->
-                                if (!tokenDelivered && result != null && result != "null") {
-                                    val token = result.trim('"')
-                                    if (token.startsWith("eyJhbGciOiJIUzI1Ni")) { // Vérification de sécurité
-                                        tokenDelivered = true
-                                        onTokenReceived(token)
-                                    }
-                                }
-                                if (!tokenDelivered && isAttachedToWindow) {
-                                    handler.removeCallbacks(this)
-                                    handler.postDelayed(this, 1000)
-                                }
-                            }
-                        }
-                    }
-
-                    override fun onDetachedFromWindow() {
-                        super.onDetachedFromWindow()
-                        handler.removeCallbacks(checkRunnable)
-                    }
 
                     init {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
 
                         webViewClient = object : WebViewClient() {
-                            override fun onPageFinished(view: WebView, url: String) {
-                                super.onPageFinished(view, url)
-                                if (!tokenDelivered && isAttachedToWindow) {
-                                    handler.removeCallbacks(checkRunnable)
-                                    handler.postDelayed(checkRunnable, 1000)
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                super.onPageStarted(view, url, favicon)
+                                url?.let {
+                                    if (it.contains("access_token=") && !tokenDelivered) {
+                                        val fragment = it.substringAfter("#", "")
+                                        val params = fragment.split("&").associate { param ->
+                                            val key = param.substringBefore("=")
+                                            val value = param.substringAfter("=", "")
+                                            key to java.net.URLDecoder.decode(value, "UTF-8")
+                                        }
+                                        val accessToken = params["access_token"]
+                                        if (accessToken != null) {
+                                            tokenDelivered = true
+                                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                                try {
+                                                    val reqUrl = java.net.URL("https://zeus.ionis-it.com/api/User/OfficeLogin")
+                                                    val conn = reqUrl.openConnection() as java.net.HttpURLConnection
+                                                    conn.requestMethod = "POST"
+                                                    conn.setRequestProperty("Content-Type", "application/json")
+                                                    conn.doOutput = true
+                                                    
+                                                    val body = "{\"accessToken\": \"$accessToken\"}"
+                                                    conn.outputStream.use { os ->
+                                                        val input = body.toByteArray(Charsets.UTF_8)
+                                                        os.write(input, 0, input.size)
+                                                    }
+                                                    
+                                                    if (conn.responseCode == 200) {
+                                                        val responseStr = conn.inputStream.bufferedReader().use { r -> r.readText() }
+                                                        val token = if (responseStr.startsWith("\"") && responseStr.endsWith("\"")) {
+                                                            responseStr.trim('"')
+                                                        } else if (responseStr.startsWith("{")) {
+                                                            org.json.JSONObject(responseStr).optString("token", responseStr)
+                                                        } else {
+                                                            responseStr
+                                                        }
+                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                            onTokenReceived(token)
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                         val msUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=39cd5b3d-08c6-4e1b-8730-6603bc77ba45&response_type=id_token+token&redirect_uri=https%3A%2F%2Fzeus.ionis-it.com%2FofficeConnect%2F&scope=openid+profile+email&nonce=12345"
-                        val html = "<html><body><script>sessionStorage.setItem('nonce', '12345'); window.location.href = '$msUrl';</script></body></html>"
-                        loadDataWithBaseURL("https://zeus.ionis-it.com/", html, "text/html", "UTF-8", null)
+                        loadUrl(msUrl)
                     }
                 }
             }
