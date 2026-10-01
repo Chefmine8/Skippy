@@ -1009,39 +1009,65 @@ fun MicrosoftAuthDialog(
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                            val url = request.url.toString()
-                            if (url.startsWith("https://zeus.ionis-it.com")) {
-                                val fragment = request.url.fragment ?: ""
-                                val fullToken = fragment.split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
-                                val payload = fullToken?.split('.')?.getOrNull(1)
-                                if (payload != null) {
-                                    onTokenReceived(payload)
-                                    return true
+                object : WebView(context) {
+                    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                    private var tokenDelivered = false
+                    private val checkScript = """
+                        (function() {
+                            try {
+                                var authStr = localStorage.getItem('ZEUS-AUTH');
+                                if (authStr) {
+                                    var auth = JSON.parse(authStr);
+                                    if (auth && auth.token) {
+                                        return auth.token;
+                                    }
                                 }
-                            }
-                            return super.shouldOverrideUrlLoading(view, request)
-                        }
+                            } catch(e) {}
+                            return null;
+                        })();
+                    """.trimIndent()
 
-                        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                            if (url.startsWith("https://zeus.ionis-it.com") && url.contains("id_token=")) {
-                                val fullToken = url.substringAfter("#", "").split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
-                                val payload = fullToken?.split('.')?.getOrNull(1)
-                                if (payload != null) {
-                                    onTokenReceived(payload)
-                                    view.stopLoading()
+                    private val checkRunnable = object : Runnable {
+                        override fun run() {
+                            if (!isAttachedToWindow || tokenDelivered) return
+                            evaluateJavascript(checkScript) { result ->
+                                if (!tokenDelivered && result != null && result != "null") {
+                                    val token = result.trim('"')
+                                    if (token.startsWith("eyJhbGciOiJIUzI1Ni")) { // Vérification de sécurité
+                                        tokenDelivered = true
+                                        onTokenReceived(token)
+                                    }
+                                }
+                                if (!tokenDelivered && isAttachedToWindow) {
+                                    handler.removeCallbacks(this)
+                                    handler.postDelayed(this, 1000)
                                 }
                             }
-                            super.onPageStarted(view, url, favicon)
                         }
                     }
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                    loadUrl("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=39cd5b3d-08c6-4e1b-8730-6603bc77ba45&response_type=id_token+token&redirect_uri=https%3A%2F%2Fzeus.ionis-it.com%2FofficeConnect%2F&scope=openid+profile+email&nonce=12345")
+
+                    override fun onDetachedFromWindow() {
+                        super.onDetachedFromWindow()
+                        handler.removeCallbacks(checkRunnable)
+                    }
+
+                    init {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageFinished(view: WebView, url: String) {
+                                super.onPageFinished(view, url)
+                                if (!tokenDelivered && isAttachedToWindow) {
+                                    handler.removeCallbacks(checkRunnable)
+                                    handler.postDelayed(checkRunnable, 1000)
+                                }
+                            }
+                        }
+                        CookieManager.getInstance().setAcceptCookie(true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        loadUrl("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=39cd5b3d-08c6-4e1b-8730-6603bc77ba45&response_type=id_token+token&redirect_uri=https%3A%2F%2Fzeus.ionis-it.com%2FofficeConnect%2F&scope=openid+profile+email&nonce=12345")
+                    }
                 }
             }
         )
