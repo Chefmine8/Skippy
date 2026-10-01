@@ -1,0 +1,58 @@
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by net.rubygrapefruit.platform.internal.NativeLibraryLoader in an unnamed module (file:/home/chmi/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/lib/native-platform-0.22-milestone-26.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+Initialized native services in: /home/chmi/.gradle/native
+Initialized jansi services in: /home/chmi/.gradle/native
+Received JVM installation metadata from '/usr/lib/jvm/java-25-openjdk': {JAVA_HOME=/usr/lib/jvm/java-25-openjdk, JAVA_VERSION=25.0.4.1, JAVA_VENDOR=Red Hat, Inc., RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=25.0.4.1+1, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=25.0.4.1+1, VM_VENDOR=Red Hat, Inc., OS_ARCH=amd64}
+Found daemon DaemonInfo{pid=8127, address=[86abff9e-7a63-40aa-a253-48e2c6e25a7f port:43819, addresses:[/127.0.0.1]], state=Idle, lastBusy=1790870824330, context=DefaultDaemonContext[uid=61eada05-d0b5-40dc-8f9d-499e0c4415bc,javaHome=/home/chmi/.jdks/jbr-21.0.11,javaVersion=21,daemonRegistryDir=/home/chmi/.gradle/daemon,pid=8127,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+JVM is incompatible.
+Wanted: DaemonRequestContext{jvmCriteria=/usr/lib/jvm/java-25-openjdk (no JDK specified, using current Java home), daemonOpts=[--add-opens=java.base/java.util=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/java.lang.invoke=ALL-UNNAMED, --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED, --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED, --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED, --add-opens=java.base/java.nio.charset=ALL-UNNAMED, --add-opens=java.base/java.net=ALL-UNNAMED, --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED, -Xmx2048m, -Dfile.encoding=UTF-8, -Duser.country=US, -Duser.language=en, -Duser.variant], applyInstrumentationAgent=true, nativeServicesMode=ENABLED, priority=NORMAL}
+Actual: DefaultDaemonContext[uid=61eada05-d0b5-40dc-8f9d-499e0c4415bc,javaHome=/home/chmi/.jdks/jbr-21.0.11,javaVersion=21,daemonRegistryDir=/home/chmi/.gradle/daemon,pid=8127,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+Found daemon DaemonInfo{pid=79, address=[0f7fafd2-fbae-4ce2-899d-83c24a3fe332 port:33495, addresses:[/127.0.0.1]], state=Idle, lastBusy=1790870474045, context=DefaultDaemonContext[uid=d7af2594-4094-4014-a4a9-d5d9e8d806b1,javaHome=/usr/lib/jvm/java-21-openjdk,javaVersion=21,daemonRegistryDir=/home/chmi/.gradle/daemon,pid=79,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+JVM is incompatible.
+Wanted: DaemonRequestContext{jvmCriteria=/usr/lib/jvm/java-25-openjdk (no JDK specified, using current Java home), daemonOpts=[--add-opens=java.base/java.util=ALL-UNNAMED, --add-opens=java.base/java.lang=ALL-UNNAMED, --add-opens=java.base/java.lang.invoke=ALL-UNNAMED, --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED, --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED, --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED, --add-opens=java.base/java.nio.charset=ALL-UNNAMED, --add-opens=java.base/java.net=ALL-UNNAMED, --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED, -Xmx2048m, -Dfile.encoding=UTF-8, -Duser.country=US, -Duser.language=en, -Duser.variant], applyInstrumentationAgent=true, nativeServicesMode=ENABLED, priority=NORMAL}
+Actual: DefaultDaemonContext[uid=d7af2594-4094-4014-a4a9-d5d9e8d806b1,javaHome=/usr/lib/jvm/java-21-openjdk,javaVersion=21,daemonRegistryDir=/home/chmi/.gradle/daemon,pid=79,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+Removing daemon from the registry due to communication failure. Daemon information: DaemonInfo{pid=84, address=[2fc9e440-e916-4555-992f-c27d467e10e1 port:43971, addresses:[/127.0.0.1]], state=Idle, lastBusy=1790871286985, context=DefaultDaemonContext[uid=09ef3d5f-b06c-4c83-97f9-24d3dbc39d5b,javaHome=/usr/lib/jvm/java-25-openjdk,javaVersion=25,daemonRegistryDir=/home/chmi/.gradle/daemon,pid=84,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,nativeServicesMode=ENABLED,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED,--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]}
+Removing 0 daemon stop events from registry
+Previous Daemon (82) stopped at Thu Oct 01 17:38:13 CEST 2026 by user or operating system
+Previous Daemon (84) stopped at Thu Oct 01 17:38:27 CEST 2026 by user or operating system
+Previous Daemon (78) stopped at Thu Oct 01 17:39:55 CEST 2026 by user or operating system
+Previous Daemon (96) stopped at Thu Oct 01 17:41:51 CEST 2026 by user or operating system
+Previous Daemon (79) stopped at Thu Oct 01 17:43:06 CEST 2026 by user or operating system
+Previous Daemon (83) stopped at Thu Oct 01 17:58:56 CEST 2026 by user or operating system
+Previous Daemon (80) stopped at Thu Oct 01 18:00:19 CEST 2026 by user or operating system
+Previous Daemon (75) stopped at Thu Oct 01 18:00:54 CEST 2026 by user or operating system
+Previous Daemon (77) stopped at Thu Oct 01 18:01:12 CEST 2026 by user or operating system
+Starting a Gradle Daemon, 3 incompatible and 9 stopped Daemons could not be reused, use --status for details
+Starting process 'Gradle build daemon'. Working directory: /home/chmi/.gradle/daemon/8.9 Command: /usr/lib/jvm/java-25-openjdk/bin/java --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED -Xmx2048m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -cp /home/chmi/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/lib/gradle-daemon-main-8.9.jar -javaagent:/home/chmi/.gradle/wrapper/dists/gradle-8.9-bin/90cnw93cvbtalezasaz0blq0a/gradle-8.9/lib/agents/gradle-instrumentation-agent-8.9.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.9
+Successfully started process 'Gradle build daemon'
+An attempt to start the daemon took 0.82 secs.
+The client will now receive all logging from the daemon (pid: 81). The daemon log file: /home/chmi/.gradle/daemon/8.9/daemon-81.out.log
+Starting build in new daemon [memory: 2 GiB]
+Using 16 worker leases.
+Received JVM installation metadata from '/usr/lib/jvm/java-25-openjdk': {JAVA_HOME=/usr/lib/jvm/java-25-openjdk, JAVA_VERSION=25.0.4.1, JAVA_VENDOR=Red Hat, Inc., RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=25.0.4.1+1, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=25.0.4.1+1, VM_VENDOR=Red Hat, Inc., OS_ARCH=amd64}
+Watching the file system is configured to be enabled if available
+Now considering [/home/chmi/epita/perso/abs/Skippy] as hierarchies to watch
+File system watching is active
+Starting Build
+Caching disabled for Kotlin DSL script compilation (Settings/TopLevel/stage1) because:
+  Build cache is disabled
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+25.0.4.1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3s

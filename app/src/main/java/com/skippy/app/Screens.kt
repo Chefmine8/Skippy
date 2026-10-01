@@ -1012,74 +1012,31 @@ fun MicrosoftAuthDialog(
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
-                    var tokenDelivered = false
-
-                    val checkScript = """
-                        (function() {
-                            try {
-                                let m = document.cookie.match(/(eyJhbGciOiJIUzI1Ni[\w-]+\.[\w-]+\.[\w-]+)/);
-                                if (m) return m[1];
-                                for (let i = 0; i < localStorage.length; i++) {
-                                    let val = localStorage.getItem(localStorage.key(i));
-                                    let m = val ? val.match(/(eyJhbGciOiJIUzI1Ni[\w-]+\.[\w-]+\.[\w-]+)/) : null;
-                                    if (m) return m[1];
-                                }
-                                for (let i = 0; i < sessionStorage.length; i++) {
-                                    let val = sessionStorage.getItem(sessionStorage.key(i));
-                                    let m = val ? val.match(/(eyJhbGciOiJIUzI1Ni[\w-]+\.[\w-]+\.[\w-]+)/) : null;
-                                    if (m) return m[1];
-                                }
-                            } catch(e) {}
-                            return null;
-                        })();
-                    """.trimIndent()
-
-                    val handler = android.os.Handler(android.os.Looper.getMainLooper())
-                    val checkRunnable = object : Runnable {
-                        override fun run() {
-                            if (!isAttachedToWindow || tokenDelivered) return
-                            evaluateJavascript(checkScript) { result ->
-                                if (!tokenDelivered && result != null && result != "null") {
-                                    val token = result.trim('"')
-                                    if (token.startsWith("eyJhbGciOiJIUzI1Ni")) {
-                                        tokenDelivered = true
-                                        onTokenReceived(token)
-                                    }
-                                }
-                                if (!tokenDelivered && isAttachedToWindow) {
-                                    handler.postDelayed(this, 1000)
-                                }
-                            }
-                        }
-                    }
-
                     webViewClient = object : WebViewClient() {
-                        override fun onPageFinished(view: WebView, url: String) {
-                            super.onPageFinished(view, url)
-                            if (!tokenDelivered && isAttachedToWindow) {
-                                handler.removeCallbacks(checkRunnable)
-                                handler.postDelayed(checkRunnable, 1000)
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                            val url = request.url.toString()
+                            if (url.startsWith("https://zeus.ionis-it.com")) {
+                                val fragment = request.url.fragment ?: ""
+                                val fullToken = fragment.split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
+                                val payload = fullToken?.split('.')?.getOrNull(1)
+                                if (payload != null) {
+                                    onTokenReceived(payload)
+                                    return true
+                                }
                             }
+                            return super.shouldOverrideUrlLoading(view, request)
                         }
 
-                        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                            val auth = request.requestHeaders?.entries?.firstOrNull { it.key.equals("Authorization", ignoreCase = true) }?.value
-                            if (auth != null) {
-                                val token = if (auth.startsWith("Bearer ", ignoreCase = true)) {
-                                    auth.substring(7).trim()
-                                } else {
-                                    auth.trim()
-                                }
-                                if (token.startsWith("eyJhbGciOiJIUzI1Ni")) {
-                                    view.post {
-                                        if (!tokenDelivered) {
-                                            tokenDelivered = true
-                                            onTokenReceived(token)
-                                        }
-                                    }
+                        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                            if (url.startsWith("https://zeus.ionis-it.com") && url.contains("id_token=")) {
+                                val fullToken = url.substringAfter("#", "").split("&").find { it.startsWith("id_token=") }?.substringAfter("=")
+                                val payload = fullToken?.split('.')?.getOrNull(1)
+                                if (payload != null) {
+                                    onTokenReceived(payload)
+                                    view.stopLoading()
                                 }
                             }
-                            return super.shouldInterceptRequest(view, request)
+                            super.onPageStarted(view, url, favicon)
                         }
                     }
                     CookieManager.getInstance().setAcceptCookie(true)

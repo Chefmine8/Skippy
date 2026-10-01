@@ -45,10 +45,11 @@ object Auth {
                 val location = conn.getHeaderField("Location") ?: return null
                 val frag = location.substringAfter('#', "")
 
-                val token = frag.split('&').find { it.startsWith("id_token=") }?.substringAfter("id_token=")
-                if (token != null) {
-                    saveManual(ctx, token)
-                    token
+                val fullToken = frag.split('&').find { it.startsWith("id_token=") }?.substringAfter("id_token=")
+                val payload = fullToken?.split('.')?.getOrNull(1)
+                if (payload != null) {
+                    saveManual(ctx, payload)
+                    payload
                 } else null
             } else null
         }
