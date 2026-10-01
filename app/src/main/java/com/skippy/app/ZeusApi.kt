@@ -43,6 +43,23 @@ object ZeusApi {
             parseDetails(JSONObject(call("GET", "api/reservation/$id/details", token, null)))
         }
 
+    /** GET api/group */
+    suspend fun groups(token: String): List<ApiGroup> =
+        withContext(Dispatchers.IO) {
+            val text = call("GET", "api/group", token, null)
+            val arr = JSONArray(text.trim())
+            (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                val id = o.optInt("id", -1)
+                if (id < 0) return@mapNotNull null
+                ApiGroup(
+                    id = id,
+                    name = o.optString("name", "Unknown"),
+                    path = o.optString("path", "").takeIf { it.isNotBlank() }
+                )
+            }
+        }
+
     // ---- HTTP ------------------------------------------------------------------------------
 
     private fun call(method: String, path: String, token: String, body: String?): String {

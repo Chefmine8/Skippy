@@ -33,6 +33,30 @@ class Repo private constructor(ctx: Context) {
         }
     }
 
+    // ---- groups ---------------------------------------------------------------------------
+
+    fun cachedGroups(): List<ApiGroup> {
+        val arr = JSONArray(sp.getString("apiGroups", "[]"))
+        return (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            ApiGroup(
+                id = o.getInt("id"),
+                name = o.getString("name"),
+                path = o.optString("path", null)
+            )
+        }
+    }
+
+    fun saveGroups(groups: List<ApiGroup>) {
+        val arr = JSONArray()
+        groups.forEach { g ->
+            val o = JSONObject().put("id", g.id).put("name", g.name)
+            if (g.path != null) o.put("path", g.path)
+            arr.put(o)
+        }
+        sp.edit().putString("apiGroups", arr.toString()).apply()
+    }
+
     // ---- settings -------------------------------------------------------------------------
 
     fun settings(): AppSettings {

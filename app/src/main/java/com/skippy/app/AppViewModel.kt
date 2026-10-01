@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class UiState(
+    val availableGroups: List<ApiGroup>,
     val settings: AppSettings,
     val sessions: List<Session>,
     val allRawSessions: List<Session>,
@@ -51,6 +52,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val availableExams = repo.availableExams()
         val stats = Stats.compute(sessions, att, repo.prefs(), examMappings, availableExams, now, s.requiredPct, names) { typeName(names, it) }
         return UiState(
+            availableGroups = repo.cachedGroups(),
             settings = s,
             sessions = sessions,
             allRawSessions = repo.allRawSessions(),
@@ -71,6 +73,20 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun reload() {
         _ui.value = build()
+    }
+
+    fun fetchGroupsIfNeeded() {
+        if (repo.cachedGroups().isNotEmpty()) return
+        viewModelScope.launch {
+            val token = Auth.accessToken(app) ?: return@launch
+            runCatching { ZeusApi.groups(token) }
+                .onSuccess {
+                    if (it.isNotEmpty()) {
+                        repo.saveGroups(it)
+                        reload()
+                    }
+                }
+        }
     }
 
     fun showMessage(text: String) {

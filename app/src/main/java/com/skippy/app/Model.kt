@@ -43,6 +43,12 @@ data class ReservationDetails(
     val groups: List<String>,
 )
 
+data class ApiGroup(
+    val id: Int,
+    val name: String,
+    val path: String? = null
+)
+
 data class AppSettings(
     val groupId: Int = 634,
     val rentree: String = "",
