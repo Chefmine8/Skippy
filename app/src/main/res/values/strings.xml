@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Skippy</string>
+
+    <string name="tab_week">Semaine</string>
+    <string name="tab_subjects">Subjects</string>
+    <string name="tab_sessions">Sessions</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="setup_title">Connect Zeus</string>
+    <string name="setup_body">Enter your group ID and the start date of the school year, then sign in with your school Microsoft account. Skippy loads your timetable week by week, including past weeks.</string>
+    <string name="group_id">Group ID</string>
+    <string name="rentree">School year start (yyyy-MM-dd)</string>
+    <string name="sign_in">Sign in with Microsoft</string>
+    <string name="sign_out">Sign out</string>
+    <string name="token_paste">Or paste an access token</string>
+    <string name="save_token">Use this token</string>
+    <string name="auth_none">Not signed in</string>
+    <string name="auth_msal">Signed in with Microsoft</string>
+    <string name="auth_manual">Using a pasted token (usually valid about 1 h)</string>
+    <string name="auth_failed">Sign-in failed: %1$s</string>
+    <string name="auth_expired">Session expired. Sign in again or paste a new token.</string>
+
+    <string name="save_sync">Save</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_full">Reload full history</string>
+    <string name="sync_ok">%1$d sessions loaded</string>
+    <string name="sync_fail">Sync failed: %1$s</string>
+    <string name="error_generic">Error: %1$s</string>
+    <string name="last_sync">Last sync: %1$s</string>
+    <string name="never_synced">Never synced</string>
+
+    <string name="reco_title">Suggestion</string>
+    <string name="reco_skip">You can skip %1$s at %2$s</string>
+    <string name="reco_none">No safe skip today, better go to class.</string>
+    <string name="no_sessions_today">No classes today</string>
+    <string name="alerts_title">Attendance alerts</string>
+
+    <string name="badge_skip">Skip suggested</string>
+    <string name="badge_can">Could be skipped</string>
+    <string name="badge_attend">Better attend</string>
+    <string name="badge_important">Marked important</string>
+
+    <string name="status_present">Present</string>
+    <string name="status_absent">Absent</string>
+    <string name="status_justified">Excused</string>
+    <string name="online">Online</string>
+
+    <string name="warn_left">%1$s: %2$d skip(s) left</string>
+    <string name="warn_below">%1$s: over budget for the whole term</string>
+
+    <string name="rule_note">Each subject and activity type is counted over the whole term: total sessions are capped at that subject\'s first Exam session once it is in the data. The skip budget is fixed once (required %% of that total) and does not grow back. Unanswered sessions never count against you until you answer them. Excused counts as present.</string>
+    <string name="stats_line">%1$d/%2$d present · %3$d%%</string>
+    <string name="no_data">No answered session yet</string>
+    <string name="margin_skips">You can skip %1$d more</string>
+    <string name="margin_zero">Do not skip the next one</string>
+    <string name="margin_over">Over budget: can no longer be recovered this term</string>
+    <string name="total_line">%1$d sessions planned before the exam · skip budget: %2$d</string>
+    <string name="total_line_no_exam">%1$d sessions planned until the last class · skip budget: %2$d</string>
+    <string name="exam_not_found">Exam not in the data yet: this estimate may still rise.</string>
+    <string name="pending">%1$d to fill in</string>
+    <string name="pref_label">When choosing what to skip</string>
+    <string name="pref_important">Important</string>
+    <string name="pref_normal">Normal</string>
+    <string name="pref_skip">Skip first</string>
+
+    <string name="filter_todo">To fill in</string>
+    <string name="filter_past">Past</string>
+    <string name="filter_upcoming">Upcoming</string>
+    <string name="empty_list">Nothing here</string>
+
+    <string name="set_required">Required attendance</string>
+    <string name="set_reserve">Safety reserve (skips kept)</string>
+    <string name="set_alert">Alert when skips left ≤</string>
+    <string name="set_max_day">Max suggested skips per day</string>
+    <string name="set_morning_cutoff">Morning ends at</string>
+    <string name="set_exception">High-margin exception (% of remaining sessions)</string>
+    <string name="set_notifications">Notification after each class</string>
+    <string name="set_excluded">Ignored events (comma separated, match the start of the title)</string>
+
+    <string name="types_title">Activity types</string>
+    <string name="types_hint">Zeus only gives a number for each type. Name them (CM, TD, TP…) using the examples.</string>
+    <string name="type_row">Type %1$d · %2$d sessions · e.g. %3$s</string>
+
+    <string name="details_btn">Details</string>
+    <string name="details_time">When</string>
+    <string name="details_code">Code</string>
+    <string name="details_rooms">Rooms</string>
+    <string name="details_teachers">Teachers</string>
+    <string name="details_comment">Comment</string>
+    <string name="details_link">Link</string>
+    <string name="close">Close</string>
+
+    <string name="notif_title">Were you at %1$s?</string>
+    <string name="notif_text">Class ended at %1$s</string>
+    <string name="channel_ask">Attendance reminders</string>
+    <string name="channel_alert">Attendance alerts</string>
+    <string name="alert_title">Careful with %1$s</string>
+    <string name="exclude_subject">Exclude from tracking</string>
+    <string name="include_subject">Track again</string>
+    <string name="excluded_title">Excluded subjects</string>
+    <string name="excluded_hint">These are not counted in the 60 % rule and do not appear in Today or Sessions.</string>
+
+    <string name="exam_mapping_title">Exam Mappings</string>
+    <string name="exam_mapping_hint">Link each course to its exam in the schedule to accurately compute the number of sessions before the exam.</string>
+    <string name="exam_select_title">Exam for %1$s</string>
+    <string name="exam_select_hint">Select the exam that closes this course:</string>
+    <string name="exam_auto">Automatic (%1$s)</string>
+    <string name="exam_auto_none">Automatic detection (none)</string>
+    <string name="exam_none">No exam</string>
+    <string name="exam_list_header">Exams found in schedule:</string>
+    <string name="exam_none_in_schedule">No exam events found in schedule yet.</string>
+    <string name="exam_label_auto">Exam: %1$s (Auto)</string>
+    <string name="exam_label_manual">Exam: %1$s (Manual)</string>
+    <string name="exam_label_none">Exam: None / Not detected</string>
+    <string name="exam_change_btn">Change exam</string>
+</resources>

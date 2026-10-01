@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Skippy</string>
+
+    <string name="tab_week">Semaine</string>
+    <string name="tab_subjects">Matières</string>
+    <string name="tab_sessions">Séances</string>
+    <string name="tab_settings">Réglages</string>
+
+    <string name="setup_title">Connecte Zeus</string>
+    <string name="setup_body">Indique ton identifiant de groupe et la date de rentrée, puis connecte-toi avec ton compte Microsoft de l\'école. Skippy charge ton emploi du temps semaine par semaine, y compris les semaines passées.</string>
+    <string name="group_id">Identifiant du groupe</string>
+    <string name="rentree">Rentrée (aaaa-mm-jj)</string>
+    <string name="sign_in">Se connecter avec Microsoft</string>
+    <string name="sign_out">Se déconnecter</string>
+    <string name="token_paste">Ou colle un token d\'accès</string>
+    <string name="save_token">Utiliser ce token</string>
+    <string name="auth_none">Non connecté</string>
+    <string name="auth_msal">Connecté avec Microsoft</string>
+    <string name="auth_manual">Token collé (valable en général environ 1 h)</string>
+    <string name="auth_failed">Échec de la connexion : %1$s</string>
+    <string name="auth_expired">Session expirée. Reconnecte-toi ou colle un nouveau token.</string>
+
+    <string name="save_sync">Enregistrer</string>
+    <string name="sync_now">Synchroniser</string>
+    <string name="sync_full">Recharger tout l\'historique</string>
+    <string name="sync_ok">%1$d séances chargées</string>
+    <string name="sync_fail">Échec de la synchronisation : %1$s</string>
+    <string name="error_generic">Erreur : %1$s</string>
+    <string name="last_sync">Dernière synchro : %1$s</string>
+    <string name="never_synced">Jamais synchronisé</string>
+
+    <string name="reco_title">Suggestion</string>
+    <string name="reco_skip">Tu peux sécher %1$s à %2$s</string>
+    <string name="reco_none">Rien à sécher sans risque aujourd\'hui, mieux vaut y aller.</string>
+    <string name="no_sessions_today">Pas de cours aujourd\'hui</string>
+    <string name="alerts_title">Alertes de présence</string>
+
+    <string name="badge_skip">Séchage conseillé</string>
+    <string name="badge_can">Peut être séchée</string>
+    <string name="badge_attend">Mieux vaut y aller</string>
+    <string name="badge_important">Marquée importante</string>
+
+    <string name="status_present">Présent</string>
+    <string name="status_absent">Absent</string>
+    <string name="status_justified">Justifié</string>
+    <string name="online">En ligne</string>
+
+    <string name="warn_left">%1$s : %2$d absence(s) possible(s)</string>
+    <string name="warn_below">%1$s : hors budget pour tout le semestre</string>
+
+    <string name="rule_note">Chaque matière et chaque type d\'activité est compté sur tout le semestre : le total des séances s\'arrête à l\'examen de la matière dès qu\'il apparaît dans les données. Le budget d\'absences est fixé une fois pour toutes (le %% requis de ce total) et ne remonte pas. Les séances non renseignées ne comptent jamais contre toi tant que tu n\'y as pas répondu. Justifié compte comme présent.</string>
+    <string name="stats_line">%1$d/%2$d présent · %3$d %%</string>
+    <string name="no_data">Aucune séance renseignée</string>
+    <string name="margin_skips">Tu peux encore sécher %1$d</string>
+    <string name="margin_zero">Ne sèche pas la prochaine</string>
+    <string name="margin_over">Hors budget : ne peut plus être rattrapé ce semestre</string>
+    <string name="total_line">%1$d séances prévues avant l\'examen · budget d\'absences : %2$d</string>
+    <string name="total_line_no_exam">%1$d séances prévues jusqu\'au dernier cours · budget d\'absences : %2$d</string>
+    <string name="exam_not_found">Examen pas encore dans les données : cette estimation peut encore augmenter.</string>
+    <string name="pending">%1$d à renseigner</string>
+    <string name="pref_label">Pour choisir quoi sécher</string>
+    <string name="pref_important">Important</string>
+    <string name="pref_normal">Normal</string>
+    <string name="pref_skip">À sécher en premier</string>
+
+    <string name="filter_todo">À renseigner</string>
+    <string name="filter_past">Passées</string>
+    <string name="filter_upcoming">À venir</string>
+    <string name="empty_list">Rien ici</string>
+
+    <string name="set_required">Présence requise</string>
+    <string name="set_reserve">Marge de sécurité (absences gardées)</string>
+    <string name="set_alert">Alerte quand absences restantes ≤</string>
+    <string name="set_max_day">Max d\'absences suggérées par jour</string>
+    <string name="set_morning_cutoff">Le matin se termine à</string>
+    <string name="set_exception">Exception grande marge (% des séances restantes)</string>
+    <string name="set_notifications">Notification après chaque cours</string>
+    <string name="set_excluded">Événements ignorés (séparés par des virgules, début du titre)</string>
+
+    <string name="types_title">Types d\'activité</string>
+    <string name="types_hint">Zeus ne donne qu\'un numéro par type. Nomme-les (CM, TD, TP…) à l\'aide des exemples.</string>
+    <string name="type_row">Type %1$d · %2$d séances · ex. %3$s</string>
+
+    <string name="details_btn">Détails</string>
+    <string name="details_time">Quand</string>
+    <string name="details_code">Code</string>
+    <string name="details_rooms">Salles</string>
+    <string name="details_teachers">Intervenants</string>
+    <string name="details_comment">Commentaire</string>
+    <string name="details_link">Lien</string>
+    <string name="close">Fermer</string>
+
+    <string name="notif_title">Étais-tu en %1$s ?</string>
+    <string name="notif_text">Cours terminé à %1$s</string>
+    <string name="channel_ask">Rappels de présence</string>
+    <string name="channel_alert">Alertes de présence</string>
+    <string name="alert_title">Attention à %1$s</string>
+    <string name="exclude_subject">Exclure du suivi</string>
+    <string name="include_subject">Suivre à nouveau</string>
+    <string name="excluded_title">Matières exclues</string>
+    <string name="excluded_hint">Elles ne comptent pas dans la règle des 60 % et n\'apparaissent plus dans Aujourd\'hui ni Séances.</string>
+
+    <string name="exam_mapping_title">Correspondance des examens</string>
+    <string name="exam_mapping_hint">Associe chaque cours à son examen dans l\'emploi du temps pour calculer le nombre exact de séances avant l\'examen.</string>
+    <string name="exam_select_title">Examen pour %1$s</string>
+    <string name="exam_select_hint">Sélectionne l\'examen qui clôture ce cours :</string>
+    <string name="exam_auto">Automatique (%1$s)</string>
+    <string name="exam_auto_none">Détection automatique (aucun examen détecté)</string>
+    <string name="exam_none">Aucun examen</string>
+    <string name="exam_list_header">Examens trouvés dans l\'emploi du temps :</string>
+    <string name="exam_none_in_schedule">Aucun événement d\'examen trouvé dans l\'emploi du temps.</string>
+    <string name="exam_label_auto">Examen : %1$s (Auto)</string>
+    <string name="exam_label_manual">Examen : %1$s (Manuel)</string>
+    <string name="exam_label_none">Examen : Aucun / Non détecté</string>
+    <string name="exam_change_btn">Modifier l\'examen</string>
+</resources>
