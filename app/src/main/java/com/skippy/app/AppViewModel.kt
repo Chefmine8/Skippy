@@ -130,7 +130,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val old = repo.settings()
         repo.saveSettings(s)
         reload()
-        val changed = s.groupId != old.groupId || s.rentree.trim() != old.rentree
+        val changed = s.groupIds != old.groupIds || s.rentree.trim() != old.rentree
         if (changed && old.authMode.isNotEmpty()) sync(full = true)
     }
 

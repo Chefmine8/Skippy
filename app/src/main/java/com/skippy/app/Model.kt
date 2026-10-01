@@ -24,6 +24,7 @@ data class Session(
     val location: String,
     val online: Boolean,
     val teachers: String,
+    val groups: String = "",
 )
 
 /** Result of GET api/reservation/{id}/details. */
@@ -50,7 +51,7 @@ data class ApiGroup(
 )
 
 data class AppSettings(
-    val groupId: Int = 634,
+    val groupIds: Set<Int> = setOf(634),
     val rentree: String = "",
     val requiredPct: Int = 60,
     val reserve: Int = 0,

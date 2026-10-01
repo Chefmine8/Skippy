@@ -15,7 +15,7 @@ class CheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx,
     override suspend fun doWork(): ListenableWorker.Result {
         val repo = Repo.get(applicationContext)
         val settings = repo.settings()
-        if (settings.groupId <= 0 || settings.authMode.isEmpty()) return ListenableWorker.Result.success()
+        if (settings.groupIds.isEmpty() || settings.authMode.isEmpty()) return ListenableWorker.Result.success()
 
         val now = System.currentTimeMillis()
         if (now - settings.lastSync > 6 * HOUR) repo.sync(full = settings.lastFull == 0L)

@@ -26,12 +26,14 @@ object ZeusApi {
     private val requestDate = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC)
 
     /** POST api/reservation/filter/displayable : reservations of one group between [from] and [to]. */
-    suspend fun reservations(token: String, from: Instant, to: Instant, groupId: Int): List<Session> =
+    suspend fun reservations(token: String, from: Instant, to: Instant, groupIds: Set<Int>): List<Session> =
         withContext(Dispatchers.IO) {
+            val groupsArray = JSONArray()
+            groupIds.forEach { groupsArray.put(it) }
             val body = JSONObject()
                 .put("startDate", requestDate.format(from))
                 .put("endDate", requestDate.format(to))
-                .put("groups", JSONArray().put(groupId))
+                .put("groups", groupsArray)
                 .put("rooms", JSONArray())
                 .put("teachers", JSONArray())
             parseList(call("POST", "api/reservation/filter/displayable", token, body.toString()))
@@ -116,6 +118,7 @@ object ZeusApi {
             location = names(o.optJSONArray("rooms")).joinToString(", "),
             online = o.optBoolean("isOnline", false),
             teachers = names(o.optJSONArray("teachers")).joinToString(", "),
+            groups = names(o.optJSONArray("groups")).joinToString(", "),
         )
     }
 

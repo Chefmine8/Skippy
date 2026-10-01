@@ -62,7 +62,8 @@ class Repo private constructor(ctx: Context) {
     fun settings(): AppSettings {
         val d = AppSettings()
         return AppSettings(
-            groupId = sp.getInt("group", d.groupId),
+            groupIds = sp.getStringSet("groupIds", null)?.mapNotNull { it.toIntOrNull() }?.toSet()?.takeIf { it.isNotEmpty() } 
+                ?: setOf(sp.getInt("group", 0)).filter { it > 0 }.toSet().ifEmpty { d.groupIds },
             rentree = sp.getString("rentree", null) ?: defaultRentree(),
             requiredPct = sp.getInt("pct", d.requiredPct),
             reserve = sp.getInt("reserve", d.reserve),
@@ -81,7 +82,8 @@ class Repo private constructor(ctx: Context) {
     /** Saves user-editable settings (not lastSync / authMode). */
     fun saveSettings(s: AppSettings) {
         val e = sp.edit()
-            .putInt("group", s.groupId)
+            .putStringSet("groupIds", s.groupIds.map { it.toString() }.toSet())
+            .putInt("group", s.groupIds.firstOrNull() ?: 0) // fallback for older clients if needed
             .putInt("pct", s.requiredPct)
             .putInt("reserve", s.reserve)
             .putInt("alertAt", s.alertAt)
@@ -177,6 +179,7 @@ class Repo private constructor(ctx: Context) {
                 uid = o.getString("u"), subject = o.getString("s"), typeId = o.optInt("t", 0),
                 start = o.getLong("a"), end = o.getLong("e"), location = o.optString("l", ""),
                 online = o.optBoolean("o", false), teachers = o.optString("h", ""),
+                groups = o.optString("g", ""),
             )
         }
     }
@@ -189,7 +192,7 @@ class Repo private constructor(ctx: Context) {
             arr.put(
                 JSONObject().put("u", it.uid).put("s", it.subject).put("t", it.typeId)
                     .put("a", it.start).put("e", it.end).put("l", it.location)
-                    .put("o", it.online).put("h", it.teachers)
+                    .put("o", it.online).put("h", it.teachers).put("g", it.groups)
             )
         }
         sp.edit().putString("sessions2", arr.toString()).apply()
@@ -230,7 +233,7 @@ class Repo private constructor(ctx: Context) {
         withContext(Dispatchers.IO) {
             runCatching {
                 val s = settings()
-                require(s.groupId > 0) { "No group" }
+                require(s.groupIds.isNotEmpty()) { "No group" }
                 val token = Auth.accessToken(appCtx) ?: throw ZeusAuthException("No token")
 
                 val today = LocalDate.now(ZoneOffset.UTC)
@@ -246,7 +249,7 @@ class Repo private constructor(ctx: Context) {
                 for ((i, w) in weeks.withIndex()) {
                     val a = w.atStartOfDay(ZoneOffset.UTC).toInstant()
                     val b = w.plusWeeks(1).atStartOfDay(ZoneOffset.UTC).toInstant()
-                    fetched.add(Triple(a.toEpochMilli(), b.toEpochMilli(), ZeusApi.reservations(token, a, b, s.groupId)))
+                    fetched.add(Triple(a.toEpochMilli(), b.toEpochMilli(), ZeusApi.reservations(token, a, b, s.groupIds)))
                     onProgress(i + 1, weeks.size)
                 }
 

@@ -38,6 +38,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List as ListIcon
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.IconButton
+
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -122,7 +128,7 @@ fun App(vm: AppViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showWebView by rememberSaveable { mutableStateOf(false) }
     val onSignIn = { showWebView = true }
-    val ready = ui.settings.groupId > 0 && ui.settings.authMode.isNotEmpty()
+    val ready = ui.settings.groupIds.isNotEmpty() && ui.settings.authMode.isNotEmpty()
 
     // Refresh "now" every minute so sessions flip from upcoming to past while the app is open.
     LaunchedEffect(Unit) {
@@ -199,10 +205,11 @@ fun App(vm: AppViewModel) {
 
 @Composable
 fun SetupScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
-    var group by remember { mutableStateOf(ui.settings.groupId.toString()) }
+    var group by remember { mutableStateOf(ui.settings.groupIds.firstOrNull()?.toString() ?: "") }
     var rentree by remember { mutableStateOf(ui.settings.rentree) }
     val saveFields = {
-        vm.saveSettings(ui.settings.copy(groupId = group.toIntOrNull() ?: ui.settings.groupId, rentree = rentree))
+        val parsed = group.toIntOrNull()
+        vm.saveSettings(ui.settings.copy(groupIds = if (parsed != null) setOf(parsed) else ui.settings.groupIds, rentree = rentree))
     }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -428,7 +435,7 @@ fun WeekSessionCard(
                 Text(s.subject, style = MaterialTheme.typography.titleMedium)
                 val place = if (s.location.isNotBlank()) s.location else if (s.online) stringResource(R.string.online) else ""
                 Text(
-                    listOf(typeLabel, place).filter { it.isNotBlank() }.joinToString(" · "),
+                    listOf(typeLabel, s.groups, place).filter { it.isNotBlank() }.joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = color,
                 )
@@ -471,7 +478,7 @@ fun SessionCard(
             }
             val place = if (s.location.isNotBlank()) s.location else if (s.online) stringResource(R.string.online) else ""
             Text(
-                listOf(typeLabel, place).filter { it.isNotBlank() }.joinToString(" · "),
+                listOf(typeLabel, s.groups, place).filter { it.isNotBlank() }.joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -770,46 +777,20 @@ fun SettingsScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
     LaunchedEffect(Unit) { vm.fetchGroupsIfNeeded() }
     var d by remember(ui.settings) { mutableStateOf(ui.settings) }
     
-    var expanded by remember { mutableStateOf(false) }
-    var search by remember(ui.settings.groupId, ui.availableGroups) {
-        val selected = ui.availableGroups.find { it.id == ui.settings.groupId }
-        mutableStateOf(selected?.let { "${it.name}" + (it.path?.let { p -> " ($p)" } ?: "") } ?: ui.settings.groupId.toString())
-    }
+    var showSearchDialog by remember { mutableStateOf(false) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         AuthSection(ui, vm, onSignIn = onSignIn)
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it }
+        Row(
+            Modifier.fillMaxWidth().clickable { showSearchDialog = true }.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
-                value = search,
-                onValueChange = { search = it; expanded = true },
-                label = { Text(stringResource(R.string.group_id)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable, true),
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                val filtered = ui.availableGroups.filter { search.isBlank() || it.name.contains(search, ignoreCase = true) || it.path?.contains(search, ignoreCase = true) == true }.take(20)
-                filtered.forEach { g ->
-                    val text = "${g.name}" + (g.path?.let { " ($it)" } ?: "")
-                    DropdownMenuItem(
-                        text = { Text(text) },
-                        onClick = { 
-                            search = text
-                            d = d.copy(groupId = g.id)
-                            expanded = false 
-                        }
-                    )
-                }
+            Column(Modifier.weight(1f)) {
+                Text("Groupes", style = MaterialTheme.typography.bodyLarge)
+                Text("${d.groupIds.size} sélectionné(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         OutlinedTextField(
@@ -914,6 +895,81 @@ fun SettingsScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
         }
         OutlinedButton(onClick = { vm.sync(true) }, enabled = !ui.syncing) {
             Text(stringResource(R.string.sync_full))
+        }
+    }
+    if (showSearchDialog) {
+        SearchGroupsDialog(
+            availableGroups = ui.availableGroups,
+            initialSelection = d.groupIds,
+            onDismiss = { showSearchDialog = false },
+            onSave = { selectedIds ->
+                d = d.copy(groupIds = selectedIds)
+                vm.saveSettings(d)
+                showSearchDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun SearchGroupsDialog(
+    availableGroups: List<ApiGroup>,
+    initialSelection: Set<Int>,
+    onDismiss: () -> Unit,
+    onSave: (Set<Int>) -> Unit
+) {
+    var search by remember { mutableStateOf("") }
+    var selected by remember { mutableStateOf(initialSelection) }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        TextField(
+                            value = search,
+                            onValueChange = { search = it },
+                            placeholder = { Text("Recherche") },
+                            singleLine = true,
+                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close") }
+                    },
+                    actions = {
+                        IconButton(onClick = { onSave(selected) }) { Icon(Icons.Default.Check, contentDescription = "Valider") }
+                    }
+                )
+            }
+        ) { padding ->
+            val filtered = remember(search, availableGroups) {
+                availableGroups.filter { search.isBlank() || it.name.contains(search, ignoreCase = true) || it.path?.contains(search, ignoreCase = true) == true }.take(100)
+            }
+            LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+                items(filtered) { g ->
+                    val isSelected = selected.contains(g.id)
+                    Row(
+                        Modifier.fillMaxWidth().clickable {
+                            selected = if (isSelected) selected - g.id else selected + g.id
+                        }.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(g.name, style = MaterialTheme.typography.bodyLarge)
+                            if (!g.path.isNullOrBlank()) {
+                                Text(g.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Checkbox(checked = isSelected, onCheckedChange = null)
+                    }
+                }
+            }
         }
     }
 }
