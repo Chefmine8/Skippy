@@ -154,21 +154,22 @@ object ZeusApi {
     }
 
     /**
-     * Full names for teachers: prefer "firstName lastName" when both fields are present,
+     * Full names for teachers: prefer "firstname name" when both fields are present,
      * otherwise fall back to "name". Handles both list and details endpoint shapes.
+     * Zeus API uses: { "firstname": "Jean", "name": "DUPONT" }
      */
     private fun teacherNames(a: JSONArray?): List<String> {
         if (a == null) return emptyList()
         return (0 until a.length()).mapNotNull { i ->
             val e = a.optJSONObject(i) ?: return@mapNotNull null
             val obj = e.optJSONObject("teacher") ?: e
-            val firstName = obj.optString("firstName").trim()
-            val lastName = obj.optString("lastName").trim()
+            val firstName = obj.optString("firstname").trim()  // Zeus uses lowercase "firstname"
+            val lastName = obj.optString("name").trim()        // Zeus uses "name" for surname
             val fullName = when {
                 firstName.isNotBlank() && lastName.isNotBlank() -> "$firstName $lastName"
                 lastName.isNotBlank() -> lastName
                 firstName.isNotBlank() -> firstName
-                else -> obj.optString("name").trim()
+                else -> ""
             }
             fullName.takeIf { it.isNotBlank() }
         }
