@@ -307,7 +307,8 @@ fun WeekScheduleScreen(ui: UiState, vm: AppViewModel) {
         
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            beyondViewportPageCount = 2
         ) { page ->
             val pageMonday = currentWeekMonday.plusWeeks((page - initialPage).toLong())
             val pageSunday = pageMonday.plusDays(6)
@@ -347,8 +348,7 @@ fun WeekScheduleScreen(ui: UiState, vm: AppViewModel) {
                             )
                         }
                         
-                        val statsMap = ui.stats.associateBy { it.key }
-                        val todayItems = Stats.today(ui.allRawSessions, ui.att, statsMap, ui.settings, ui.now, day)
+                        val todayItems = ui.cachedSchedules?.get(day) ?: Stats.today(ui.allRawSessions, ui.att, ui.stats.associateBy { it.key }, ui.settings, ui.now, day)
                         val todayItemsMap = todayItems.associateBy { it.session.uid }
                         
                         val recos = todayItems.filter { it.badge == Badge.SKIP_SUGGESTED }
@@ -421,7 +421,7 @@ fun WeekSessionCard(
     onDetails: () -> Unit,
     onSet: (Status?) -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(onClick = onDetails, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.height(IntrinsicSize.Min)) {
             Column(
                 Modifier
@@ -452,7 +452,6 @@ fun WeekSessionCard(
                     Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = badgeColor, fontWeight = FontWeight.Bold)
                 }
                 StatusChips(status, onSet)
-                TextButton(onClick = onDetails) { Text(stringResource(R.string.details_btn)) }
             }
         }
     }
@@ -468,7 +467,7 @@ fun SessionCard(
     onDetails: () -> Unit,
     onSet: (Status?) -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(onClick = onDetails, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -495,7 +494,6 @@ fun SessionCard(
                 Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)
             }
             StatusChips(status, onSet)
-            TextButton(onClick = onDetails) { Text(stringResource(R.string.details_btn)) }
         }
     }
 }

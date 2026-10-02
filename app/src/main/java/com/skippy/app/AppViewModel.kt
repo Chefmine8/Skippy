@@ -26,6 +26,7 @@ data class UiState(
     val syncing: Boolean,
     val progress: Pair<Int, Int>?,
     val message: String?,
+    val cachedSchedules: Map<java.time.LocalDate, List<TodayItem>>? = null
 )
 
 data class DetailsState(val loading: Boolean, val details: ReservationDetails?, val error: String?)
@@ -36,13 +37,19 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     private var progress: Pair<Int, Int>? = null
     private var message: String? = null
 
-    private val _ui = MutableStateFlow(build())
+    private val _ui = MutableStateFlow(build(full = false))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
     private val _details = MutableStateFlow<DetailsState?>(null)
     val details: StateFlow<DetailsState?> = _details.asStateFlow()
 
-    private fun build(): UiState {
+    init {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            _ui.value = build(full = true)
+        }
+    }
+
+    private fun build(full: Boolean): UiState {
         val s = repo.settings()
         val sessions = repo.sessions()
         val att = repo.attendance()
@@ -50,12 +57,41 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val now = System.currentTimeMillis()
         val examMappings = repo.examMappings()
         val availableExams = repo.availableExams()
-        val stats = Stats.compute(sessions, att, repo.prefs(), examMappings, availableExams, now, s.requiredPct, names) { typeName(names, it) }
+        val allRaw = repo.allRawSessions()
+
+        var stats = emptyList<SubjectStats>()
+        var cachedSchedules: Map<java.time.LocalDate, List<TodayItem>>? = null
+
+        if (full) {
+            stats = Stats.compute(sessions, att, repo.prefs(), examMappings, availableExams, now, s.requiredPct, names) { typeName(names, it) }
+            val statsMap = stats.associateBy { it.key }
+            
+            val sched = mutableMapOf<java.time.LocalDate, List<TodayItem>>()
+            val zone = java.time.ZoneId.systemDefault()
+            val currentWeekMonday = java.time.LocalDate.now(zone).with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+            for (w in -2..2) {
+                val pageMonday = currentWeekMonday.plusWeeks(w.toLong())
+                for (d in 0..6) {
+                    val day = pageMonday.plusDays(d.toLong())
+                    sched[day] = Stats.today(allRaw, att, statsMap, s, now, day)
+                }
+            }
+            cachedSchedules = sched
+            
+            WeeklyCache.save(app, stats, sched)
+        } else {
+            val c = WeeklyCache.load(app)
+            if (c != null) {
+                stats = c.stats
+                cachedSchedules = c.schedules
+            }
+        }
+
         return UiState(
             availableGroups = repo.cachedGroups(),
             settings = s,
             sessions = sessions,
-            allRawSessions = repo.allRawSessions(),
+            allRawSessions = allRaw,
             att = att,
             typeNames = names,
             stats = stats,
@@ -68,11 +104,14 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             syncing = syncing,
             progress = progress,
             message = message,
+            cachedSchedules = cachedSchedules
         )
     }
 
     fun reload() {
-        _ui.value = build()
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            _ui.value = build(full = true)
+        }
     }
 
     fun fetchGroupsIfNeeded() {
