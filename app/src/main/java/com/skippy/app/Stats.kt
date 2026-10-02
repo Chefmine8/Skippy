@@ -178,9 +178,8 @@ object Stats {
             if (badges.containsKey(c.uid)) continue
             val st = stats[key(c)] ?: continue // Skip excluded subjects
             when {
-                st.margin < 0 -> badges[c.uid] = Badge.MUST_ATTEND
+                st.margin <= 0 -> badges[c.uid] = Badge.MUST_ATTEND
                 st.pref == 0 -> badges[c.uid] = Badge.IMPORTANT
-                st.margin == 0 -> badges[c.uid] = Badge.ATTEND
             }
         }
         return todays.map { TodayItem(it, att[it.uid], badges[it.uid]) }

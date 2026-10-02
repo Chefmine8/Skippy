@@ -711,8 +711,7 @@ fun ExcludedSubjectsCard(subjects: List<String>, onInclude: (String) -> Unit) {
 @Composable
 private fun StatRow(st: SubjectStats) {
     val color = when {
-        st.margin < 0 -> Red
-        st.margin == 0 -> Amber
+        st.margin <= 0 -> Red
         else -> Green
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -737,8 +736,7 @@ private fun StatRow(st: SubjectStats) {
             )
             val msg = when {
                 st.margin >= 1 -> pluralStringResource(R.plurals.margin_skips, st.margin, st.margin)
-                st.margin == 0 -> stringResource(R.string.margin_zero)
-                else -> stringResource(R.string.margin_over)
+                else -> stringResource(R.string.badge_must_attend)
             }
             Text(msg, color = color, fontWeight = FontWeight.Bold)
         }
