@@ -119,6 +119,10 @@
     <string name="include_subject">Track again</string>
     <string name="excluded_title">Excluded subjects</string>
     <string name="excluded_hint">These are not counted in the 60 % rule and do not appear in Today or Sessions.</string>
+    <string name="hide_subject">Hide from timetable</string>
+    <string name="unhide_subject">Show again</string>
+    <string name="hidden_title">Hidden courses</string>
+    <string name="hidden_hint">These courses are completely hidden from the timetable, sessions list and statistics.</string>
 
     <string name="exam_mapping_title">Exam Mappings</string>
     <string name="exam_mapping_hint">Link each course to its exam in the schedule to accurately compute the number of sessions before the exam.</string>

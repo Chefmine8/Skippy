@@ -181,6 +181,24 @@ class Repo private constructor(ctx: Context) {
         cachedExcludedSubjects = null
     }
 
+    // ---- hidden subjects (completely removed from timetable) --------------------------------
+
+    private var cachedHiddenSubjects: Set<String>? = null
+    fun hiddenSubjects(): Set<String> {
+        cachedHiddenSubjects?.let { return it }
+        val arr = JSONArray(sp.getString("hiddenSubjects", "[]"))
+        return (0 until arr.length()).map { arr.getString(it) }.toSet().also { cachedHiddenSubjects = it }
+    }
+
+    fun setSubjectHidden(subject: String, hidden: Boolean) {
+        val current = hiddenSubjects().toMutableSet()
+        if (hidden) current.add(subject) else current.remove(subject)
+        val arr = JSONArray()
+        current.forEach { arr.put(it) }
+        sp.edit().putString("hiddenSubjects", arr.toString()).apply()
+        cachedHiddenSubjects = null
+    }
+
     // ---- sessions -------------------------------------------------------------------------
 
     private var cachedRawSessions: List<Session>? = null
@@ -199,7 +217,7 @@ class Repo private constructor(ctx: Context) {
         }.also { cachedRawSessions = it }
     }
 
-    fun allRawSessions(): List<Session> = rawSessions()
+    fun allRawSessions(): List<Session> = rawSessions().filter { it.subject !in hiddenSubjects() }
 
     private fun saveRaw(list: List<Session>) {
         cachedRawSessions = list
@@ -230,7 +248,9 @@ class Repo private constructor(ctx: Context) {
     fun sessions(): List<Session> {
         val keywords = settings().excluded.split(",").map { plain(it) }.filter { it.isNotEmpty() }
         val excludedSubjects = excludedSubjects()
+        val hiddenSubjects = hiddenSubjects()
         return rawSessions()
+            .filter { it.subject !in hiddenSubjects }
             .filter { s -> val n = plain(s.subject); keywords.none { n.startsWith(it) } }
             .filter { it.subject !in excludedSubjects }
             .sortedBy { it.start }

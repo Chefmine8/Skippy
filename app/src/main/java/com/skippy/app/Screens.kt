@@ -602,6 +602,9 @@ fun SubjectsScreen(ui: UiState, vm: AppViewModel) {
         if (ui.excludedSubjects.isNotEmpty()) item {
             ExcludedSubjectsCard(ui.excludedSubjects.sorted()) { vm.setSubjectExcluded(it, false) }
         }
+        if (ui.hiddenSubjects.isNotEmpty()) item {
+            HiddenSubjectsCard(ui.hiddenSubjects.sorted()) { vm.setSubjectHidden(it, false) }
+        }
         items(groups, key = { it.first }) { (subject, rows) ->
             SubjectCard(
                 subject = subject,
@@ -609,6 +612,7 @@ fun SubjectsScreen(ui: UiState, vm: AppViewModel) {
                 availableExams = ui.availableExams,
                 onPref = { vm.setPref(subject, it) },
                 onExclude = { vm.setSubjectExcluded(subject, true) },
+                onHide = { vm.setSubjectHidden(subject, true) },
                 onExamMappingChanged = { vm.setExamMapping(subject, it) },
             )
         }
@@ -622,6 +626,7 @@ fun SubjectCard(
     availableExams: List<String>,
     onPref: (Int) -> Unit,
     onExclude: () -> Unit,
+    onHide: () -> Unit,
     onExamMappingChanged: (String) -> Unit,
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -634,6 +639,7 @@ fun SubjectCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(subject, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 TextButton(onClick = onExclude) { Text(stringResource(R.string.exclude_subject)) }
+                TextButton(onClick = onHide) { Text(stringResource(R.string.hide_subject)) }
             }
             rows.forEach { StatRow(it) }
 
@@ -702,6 +708,22 @@ fun ExcludedSubjectsCard(subjects: List<String>, onInclude: (String) -> Unit) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(subject, Modifier.weight(1f))
                     TextButton(onClick = { onInclude(subject) }) { Text(stringResource(R.string.include_subject)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HiddenSubjectsCard(subjects: List<String>, onUnhide: (String) -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.hidden_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.hidden_hint), style = MaterialTheme.typography.bodySmall)
+            subjects.forEach { subject ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(subject, Modifier.weight(1f))
+                    TextButton(onClick = { onUnhide(subject) }) { Text(stringResource(R.string.unhide_subject)) }
                 }
             }
         }

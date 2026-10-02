@@ -21,6 +21,7 @@ data class UiState(
     val alerts: List<SubjectStats>,
     val allSubjects: List<String>,
     val excludedSubjects: Set<String>,
+    val hiddenSubjects: Set<String>,
     val examMappings: Map<String, String>,
     val availableExams: List<String>,
     val now: Long,
@@ -104,6 +105,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             alerts = Stats.alerts(stats, s.alertAt),
             allSubjects = repo.allSubjects(),
             excludedSubjects = repo.excludedSubjects(),
+            hiddenSubjects = repo.hiddenSubjects(),
             examMappings = examMappings,
             availableExams = availableExams,
             now = now,
@@ -170,6 +172,11 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun setSubjectExcluded(subject: String, excluded: Boolean) {
         repo.setSubjectExcluded(subject, excluded)
+        reload()
+    }
+
+    fun setSubjectHidden(subject: String, hidden: Boolean) {
+        repo.setSubjectHidden(subject, hidden)
         reload()
     }
 
