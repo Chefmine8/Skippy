@@ -118,7 +118,7 @@ object ZeusApi {
             end = end,
             location = names(o.optJSONArray("rooms")).joinToString(", "),
             online = o.optBoolean("isOnline", false),
-            teachers = names(o.optJSONArray("teachers")).joinToString(", "),
+            teachers = teacherNames(o.optJSONArray("teachers")).joinToString(", "),
             groups = names(o.optJSONArray("groups")).joinToString(", "),
         )
     }
@@ -138,18 +138,39 @@ object ZeusApi {
             code = o.optString("code"),
             durationMin = o.optInt("duration", 0),
             rooms = names(o.optJSONArray("rooms")),
-            teachers = names(o.optJSONArray("teachers")),
+            teachers = teacherNames(o.optJSONArray("teachers")),
             groups = names(o.optJSONArray("groups")),
         )
     }
 
-    /** Names from [{"id":1,"name":"X"}] (list endpoint) or [{"room":{"id":1,"name":"X"}}] (details endpoint). */
+    /** Names from [{\"id\":1,\"name\":\"X\"}] (list endpoint) or [{\"room\":{\"id\":1,\"name\":\"X\"}}] (details endpoint). */
     private fun names(a: JSONArray?): List<String> {
         if (a == null) return emptyList()
         return (0 until a.length()).mapNotNull { i ->
             val e = a.optJSONObject(i) ?: return@mapNotNull null
             val n = e.optJSONObject("room") ?: e
             n.optString("name").takeIf { it.isNotBlank() }
+        }
+    }
+
+    /**
+     * Full names for teachers: prefer "firstName lastName" when both fields are present,
+     * otherwise fall back to "name". Handles both list and details endpoint shapes.
+     */
+    private fun teacherNames(a: JSONArray?): List<String> {
+        if (a == null) return emptyList()
+        return (0 until a.length()).mapNotNull { i ->
+            val e = a.optJSONObject(i) ?: return@mapNotNull null
+            val obj = e.optJSONObject("teacher") ?: e
+            val firstName = obj.optString("firstName").trim()
+            val lastName = obj.optString("lastName").trim()
+            val fullName = when {
+                firstName.isNotBlank() && lastName.isNotBlank() -> "$firstName $lastName"
+                lastName.isNotBlank() -> lastName
+                firstName.isNotBlank() -> firstName
+                else -> obj.optString("name").trim()
+            }
+            fullName.takeIf { it.isNotBlank() }
         }
     }
 

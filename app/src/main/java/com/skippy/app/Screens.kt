@@ -636,10 +636,20 @@ fun SubjectCard(
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(subject, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = onExclude) { Text(stringResource(R.string.exclude_subject)) }
-                TextButton(onClick = onHide) { Text(stringResource(R.string.hide_subject)) }
+            Text(subject, style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(
+                    onClick = onExclude,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text(stringResource(R.string.exclude_subject), style = MaterialTheme.typography.labelSmall)
+                }
+                TextButton(
+                    onClick = onHide,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text(stringResource(R.string.hide_subject), style = MaterialTheme.typography.labelSmall)
+                }
             }
             rows.forEach { StatRow(it) }
 
