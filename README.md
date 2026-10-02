@@ -5,6 +5,7 @@
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack_Compose-4285F4?style=flat&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Material 3](https://img.shields.io/badge/Design-Material_3-7C4DFF?style=flat)](https://m3.material.io/)
 [![Security](https://img.shields.io/badge/Security-AES--256--GCM_Keystore-00897B?style=flat)](https://developer.android.com/training/articles/keystore)
+[![License: CC BY-NC-SA 4.0](https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by-nc-sa.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr)
 
 > **L'assistant d'assiduité intelligent pour étudiants.**  
 > Synchronisez votre planning en direct, suivez votre quota d'absences autorisées matière par matière (règle des 60 %) et identifiez les cours que vous pouvez sécher en toute sécurité.
@@ -73,6 +74,27 @@ Certains constructeurs (Samsung, Xiaomi, OnePlus) brident les processus d'arriè
 <summary><b>Mes données sont-elles partagées ?</b></summary>
 Non. Skippy fonctionne exclusivement en local sur votre téléphone sans serveur intermédiaire.
 </details>
+
+---
+
+## 🤖 Développement assisté par IA
+
+Ce projet a été co-développé en pair programming avec des modèles d'intelligence artificielle modernes (notamment **Google Antigravity** & **Gemini**).
+
+- **Co-conception et architecture :** L'IA a été utilisée pour l'aide au prototypage d'interface Jetpack Compose, l'optimisation des algorithmes de calcul d'assiduité, la rédaction des tests unitaires et la résolution de bugs.
+- **Supervision humaine :** L'ensemble de l'architecture, de la validation de sécurité (gestion de la clé AES-256 dans Keystore) et des choix de conception restent sous le contrôle et la responsabilité de l'auteur.
+
+---
+
+## 📄 Licence
+
+[![CC BY-NC-SA 4.0](https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by-nc-sa.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr)
+
+Ce travail est mis à disposition selon les termes de la Licence Creative Commons Attribution - Pas d'Utilisation Commerciale - Partage dans les Mêmes Conditions 4.0 International. Pour voir une copie de cette licence, visitez https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr.
+
+- **Attribution (BY) :** Vous devez créditer l'auteur original.
+- **Pas d'Utilisation Commerciale (NC) :** Ce projet et ses dérivés ne peuvent pas être réutilisés à des fins commerciales ou financières.
+- **Partage dans les Mêmes Conditions (SA) :** Tout travail dérivé doit être distribué sous cette même licence.
 
 ---
 
