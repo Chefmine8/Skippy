@@ -395,6 +395,7 @@ fun WeekScheduleScreen(ui: UiState, vm: AppViewModel) {
                                 status = ui.att[s.uid],
                                 badge = wd.items[s.uid]?.badge,
                                 color = color,
+                                showStatusChips = ui.statsByKey.containsKey(Stats.key(s)),
                                 onDetails = { vm.showDetails(s.uid) },
                                 onSet = { vm.setStatus(s.uid, it) }
                             )
@@ -423,6 +424,7 @@ fun WeekSessionCard(
     status: Status?,
     badge: Badge?,
     color: Color,
+    showStatusChips: Boolean = true,
     onDetails: () -> Unit,
     onSet: (Status?) -> Unit,
 ) {
@@ -456,10 +458,13 @@ fun WeekSessionCard(
                         Badge.CAN_SKIP -> R.string.badge_can to Green
                         Badge.ATTEND -> R.string.badge_attend to Amber
                         Badge.IMPORTANT -> R.string.badge_important to MaterialTheme.colorScheme.primary
+                        Badge.MUST_ATTEND -> R.string.badge_must_attend to Red
                     }
                     Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = badgeColor, fontWeight = FontWeight.Bold)
                 }
-                StatusChips(status, onSet)
+                if (showStatusChips) {
+                    StatusChips(status, onSet)
+                }
             }
         }
     }
@@ -472,6 +477,7 @@ fun SessionCard(
     status: Status?,
     badge: Badge?,
     showDate: Boolean,
+    showStatusChips: Boolean = true,
     onDetails: () -> Unit,
     onSet: (Status?) -> Unit,
 ) {
@@ -498,10 +504,13 @@ fun SessionCard(
                     Badge.CAN_SKIP -> R.string.badge_can to Green
                     Badge.ATTEND -> R.string.badge_attend to Amber
                     Badge.IMPORTANT -> R.string.badge_important to MaterialTheme.colorScheme.primary
+                    Badge.MUST_ATTEND -> R.string.badge_must_attend to Red
                 }
                 Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)
             }
-            StatusChips(status, onSet)
+            if (showStatusChips) {
+                StatusChips(status, onSet)
+            }
         }
     }
 }
@@ -771,6 +780,7 @@ fun SessionsScreen(ui: UiState, vm: AppViewModel) {
             items(list, key = { it.uid }) { s ->
                 SessionCard(
                     s, typeName(ui.typeNames, s.typeId), ui.att[s.uid], null, showDate = true,
+                    showStatusChips = ui.statsByKey.containsKey(Stats.key(s)),
                     onDetails = { vm.showDetails(s.uid) },
                 ) { vm.setStatus(s.uid, it) }
             }

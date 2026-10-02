@@ -40,6 +40,7 @@
     <string name="badge_skip">Skip suggested</string>
     <string name="badge_can">Could be skipped</string>
     <string name="badge_attend">Better attend</string>
+    <string name="badge_must_attend">Must attend</string>
     <string name="badge_important">Marked important</string>
 
     <string name="status_present">Present</string>
@@ -109,6 +110,8 @@
 
     <string name="notif_title">Were you at %1$s?</string>
     <string name="notif_text">Class ended at %1$s</string>
+    <string name="notif_upcoming_title">Upcoming: %1$s</string>
+    <string name="notif_upcoming_text">Starts at %1$s</string>
     <string name="channel_ask">Attendance reminders</string>
     <string name="channel_alert">Attendance alerts</string>
     <string name="alert_title">Careful with %1$s</string>

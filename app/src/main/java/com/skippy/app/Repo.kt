@@ -332,4 +332,15 @@ class Repo private constructor(ctx: Context) {
         arr.put(uid)
         sp.edit().putString("notified", arr.toString()).apply()
     }
+
+    fun notifiedUpcoming(): Set<String> {
+        val arr = JSONArray(sp.getString("notifiedUpcoming", "[]"))
+        return (0 until arr.length()).map { arr.getString(it) }.toSet()
+    }
+
+    fun markNotifiedUpcoming(uid: String) {
+        val arr = JSONArray(sp.getString("notifiedUpcoming", "[]"))
+        arr.put(uid)
+        sp.edit().putString("notifiedUpcoming", arr.toString()).apply()
+    }
 }

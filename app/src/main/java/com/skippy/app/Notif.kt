@@ -73,6 +73,18 @@ object Notif {
     }
 
     @SuppressLint("MissingPermission")
+    fun upcoming(ctx: Context, s: Session) {
+        if (!canPost(ctx)) return
+        val b = NotificationCompat.Builder(ctx, CH_ASK)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(ctx.getString(R.string.notif_upcoming_title, "${s.subject} · ${Repo.get(ctx).typeName(s.typeId)}"))
+            .setContentText(ctx.getString(R.string.notif_upcoming_text, fmtTime(s.start)))
+            .setContentIntent(openApp(ctx))
+            .setAutoCancel(true)
+        NotificationManagerCompat.from(ctx).notify(("upcoming-" + s.uid).hashCode(), b.build())
+    }
+
+    @SuppressLint("MissingPermission")
     fun alert(ctx: Context, st: SubjectStats, pct: Int) {
         if (!canPost(ctx)) return
         val n = NotificationCompat.Builder(ctx, CH_ALERT)

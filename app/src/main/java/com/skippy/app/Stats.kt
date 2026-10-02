@@ -33,7 +33,7 @@ data class SubjectStats(
     val rate: Int? get() = if (answered == 0) null else (present * 100f / answered).roundToInt()
 }
 
-enum class Badge { SKIP_SUGGESTED, CAN_SKIP, ATTEND, IMPORTANT }
+enum class Badge { SKIP_SUGGESTED, CAN_SKIP, ATTEND, IMPORTANT, MUST_ATTEND }
 
 data class TodayItem(val session: Session, val status: Status?, val badge: Badge?)
 
@@ -178,8 +178,9 @@ object Stats {
             if (badges.containsKey(c.uid)) continue
             val st = stats[key(c)] ?: continue // Skip excluded subjects
             when {
+                st.margin < 0 -> badges[c.uid] = Badge.MUST_ATTEND
                 st.pref == 0 -> badges[c.uid] = Badge.IMPORTANT
-                st.margin <= 0 -> badges[c.uid] = Badge.ATTEND
+                st.margin == 0 -> badges[c.uid] = Badge.ATTEND
             }
         }
         return todays.map { TodayItem(it, att[it.uid], badges[it.uid]) }

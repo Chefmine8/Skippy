@@ -40,6 +40,7 @@
     <string name="badge_skip">Séchage conseillé</string>
     <string name="badge_can">Peut être séchée</string>
     <string name="badge_attend">Mieux vaut y aller</string>
+    <string name="badge_must_attend">Sois là</string>
     <string name="badge_important">Marquée importante</string>
 
     <string name="status_present">Présent</string>
@@ -109,6 +110,8 @@
 
     <string name="notif_title">Étais-tu en %1$s ?</string>
     <string name="notif_text">Cours terminé à %1$s</string>
+    <string name="notif_upcoming_title">À venir : %1$s</string>
+    <string name="notif_upcoming_text">Commence à %1$s</string>
     <string name="channel_ask">Rappels de présence</string>
     <string name="channel_alert">Alertes de présence</string>
     <string name="alert_title">Attention à %1$s</string>

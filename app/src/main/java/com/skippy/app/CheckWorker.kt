@@ -30,6 +30,15 @@ class CheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx,
                 Notif.ask(applicationContext, it)
                 repo.markNotified(it.uid)
             }
+
+        val notifiedUpcoming = repo.notifiedUpcoming()
+        repo.sessions()
+            .filter { it.typeId == 1 && it.start > now && it.start <= now + 45 * 60_000L && it.uid !in notifiedUpcoming }
+            .take(5)
+            .forEach {
+                Notif.upcoming(applicationContext, it)
+                repo.markNotifiedUpcoming(it.uid)
+            }
         return ListenableWorker.Result.success()
     }
 
