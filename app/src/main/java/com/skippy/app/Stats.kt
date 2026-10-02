@@ -126,6 +126,18 @@ object Stats {
         val todays = sessions
             .filter { Instant.ofEpochMilli(it.start).atZone(zone).toLocalDate() == day }
             .sortedBy { it.start }
+        return forDay(todays, att, stats, s, now)
+    }
+
+    /** Same as [today], but [todays] is already the day's sessions sorted by start (no full scan). */
+    fun forDay(
+        todays: List<Session>,
+        att: Map<String, Status>,
+        stats: Map<String, SubjectStats>,
+        s: AppSettings,
+        now: Long,
+    ): List<TodayItem> {
+        val zone = ZoneId.systemDefault()
 
         fun isMorning(sess: Session) = Instant.ofEpochMilli(sess.start).atZone(zone).hour < s.morningCutoffHour
         val morningCount = todays.count { isMorning(it) }

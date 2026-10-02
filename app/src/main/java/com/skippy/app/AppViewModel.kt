@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -26,7 +27,10 @@ data class UiState(
     val syncing: Boolean,
     val progress: Pair<Int, Int>?,
     val message: String?,
-    val cachedSchedules: Map<java.time.LocalDate, List<TodayItem>>? = null
+    val cachedSchedules: Map<java.time.LocalDate, List<TodayItem>>? = null,
+    /** allRawSessions grouped by local day, each list sorted by start. */
+    val sessionsByDay: Map<LocalDate, List<Session>> = emptyMap(),
+    val statsByKey: Map<String, SubjectStats> = emptyMap(),
 )
 
 data class DetailsState(val loading: Boolean, val details: ReservationDetails?, val error: String?)
@@ -58,6 +62,9 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val examMappings = repo.examMappings()
         val availableExams = repo.availableExams()
         val allRaw = repo.allRawSessions()
+        val zone = java.time.ZoneId.systemDefault()
+        val byDay = allRaw.sortedBy { it.start }
+            .groupBy { java.time.Instant.ofEpochMilli(it.start).atZone(zone).toLocalDate() }
 
         var stats = emptyList<SubjectStats>()
         var cachedSchedules: Map<java.time.LocalDate, List<TodayItem>>? = null
@@ -65,15 +72,14 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         if (full) {
             stats = Stats.compute(sessions, att, repo.prefs(), examMappings, availableExams, now, s.requiredPct, names) { typeName(names, it) }
             val statsMap = stats.associateBy { it.key }
-            
+
             val sched = mutableMapOf<java.time.LocalDate, List<TodayItem>>()
-            val zone = java.time.ZoneId.systemDefault()
             val currentWeekMonday = java.time.LocalDate.now(zone).with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
             for (w in -2..2) {
                 val pageMonday = currentWeekMonday.plusWeeks(w.toLong())
                 for (d in 0..6) {
                     val day = pageMonday.plusDays(d.toLong())
-                    sched[day] = Stats.today(allRaw, att, statsMap, s, now, day)
+                    sched[day] = Stats.forDay(byDay[day].orEmpty(), att, statsMap, s, now)
                 }
             }
             cachedSchedules = sched
@@ -104,7 +110,9 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             syncing = syncing,
             progress = progress,
             message = message,
-            cachedSchedules = cachedSchedules
+            cachedSchedules = cachedSchedules,
+            sessionsByDay = byDay,
+            statsByKey = stats.associateBy { it.key },
         )
     }
 
@@ -130,12 +138,12 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun showMessage(text: String) {
         message = text
-        reload()
+        _ui.update { it.copy(message = text) }
     }
 
     fun clearMessage() {
         message = null
-        reload()
+        _ui.update { it.copy(message = null) }
     }
 
     // ---- attendance / preferences ---------------------------------------------------------
@@ -202,7 +210,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             val doFull = full || repo.settings().lastFull == 0L
             val result = repo.sync(doFull) { done, total ->
                 progress = done to total
-                reload()
+                _ui.update { it.copy(progress = done to total) }
             }
             syncing = false
             progress = null

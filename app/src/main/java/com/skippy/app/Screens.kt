@@ -17,7 +17,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -85,6 +84,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -294,14 +295,25 @@ fun AuthSection(ui: UiState, vm: AppViewModel, before: () -> Unit = {}, onSignIn
 // Today
 // ---------------------------------------------------------------------------------------------
 
+private val shortDateFmt = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+private val fullDateFmt = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)
+
+/** One day of a week page, computed once per page instead of on every recomposition. */
+private class WeekDay(
+    val day: LocalDate,
+    val sessions: List<Session>,
+    val items: Map<String, TodayItem>,
+    val recos: List<TodayItem>,
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WeekScheduleScreen(ui: UiState, vm: AppViewModel) {
-    val ctx = LocalContext.current
     val initialPage = Int.MAX_VALUE / 2
     val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { Int.MAX_VALUE })
     
-    val currentWeekMonday = remember { LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
+    val today = remember { LocalDate.now() }
+    val currentWeekMonday = remember { today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
     
     Column(Modifier.fillMaxSize()) {
         
@@ -311,88 +323,81 @@ fun WeekScheduleScreen(ui: UiState, vm: AppViewModel) {
             beyondViewportPageCount = 2
         ) { page ->
             val pageMonday = currentWeekMonday.plusWeeks((page - initialPage).toLong())
-            val pageSunday = pageMonday.plusDays(6)
-            
-            val zone = java.time.ZoneId.systemDefault()
-            val startOfWeek = pageMonday.atStartOfDay(zone).toInstant().toEpochMilli()
-            val endOfWeek = pageMonday.plusWeeks(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            
-            val weekSessions = ui.allRawSessions.filter { it.start in startOfWeek until endOfWeek }
-            val byDay = weekSessions.groupBy { 
-                java.time.Instant.ofEpochMilli(it.start).atZone(zone).toLocalDate() 
+            val title = remember(pageMonday) {
+                "${pageMonday.format(shortDateFmt)} - ${pageMonday.plusDays(6).format(shortDateFmt)}"
             }
-            
-            val days = (0..6).map { pageMonday.plusDays(it.toLong()) }
+            val days = remember(pageMonday, ui.sessionsByDay, ui.cachedSchedules, ui.att, ui.statsByKey, ui.settings, ui.now) {
+                (0..6).map { pageMonday.plusDays(it.toLong()) }
+                    .mapNotNull { day ->
+                        val daySessions = ui.sessionsByDay[day].orEmpty()
+                        if (daySessions.isEmpty() && day != today) return@mapNotNull null
+                        val items = ui.cachedSchedules?.get(day)
+                            ?: Stats.forDay(daySessions, ui.att, ui.statsByKey, ui.settings, ui.now)
+                        WeekDay(day, daySessions, items.associateBy { it.session.uid }, items.filter { it.badge == Badge.SKIP_SUGGESTED })
+                    }
+            }
             
             LazyColumn(
                 Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item {
+                item(key = "title", contentType = "title") {
                     Text(
-                        "${pageMonday.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT))} - ${pageSunday.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT))}",
+                        title,
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
                 
-                days.forEach { day ->
-                    val daySessions = byDay[day] ?: emptyList()
-                    if (daySessions.isNotEmpty() || day == LocalDate.now()) {
-                        item {
-                            Text(
-                                day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
-                        }
-                        
-                        val todayItems = ui.cachedSchedules?.get(day) ?: Stats.today(ui.allRawSessions, ui.att, ui.stats.associateBy { it.key }, ui.settings, ui.now, day)
-                        val todayItemsMap = todayItems.associateBy { it.session.uid }
-                        
-                        val recos = todayItems.filter { it.badge == Badge.SKIP_SUGGESTED }
-                        if (recos.isNotEmpty()) {
-                            item {
-                                Card(
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = Color(0xFFE8F5E9)
-                                    )
-                                ) {
-                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(stringResource(R.string.reco_title), style = MaterialTheme.typography.titleMedium)
-                                        recos.forEach {
-                                            Text(
-                                                stringResource(
-                                                    R.string.reco_skip,
-                                                    "${it.session.subject} · ${typeName(ui.typeNames, it.session.typeId)}",
-                                                    fmtTime(it.session.start),
-                                                ),
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Green,
-                                            )
-                                        }
+                days.forEach { wd ->
+                    item(key = "day-${wd.day}", contentType = "dayHeader") {
+                        Text(
+                            wd.day.format(fullDateFmt),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                    
+                    if (wd.recos.isNotEmpty()) {
+                        item(key = "reco-${wd.day}", contentType = "reco") {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color(0xFFE8F5E9)
+                                )
+                            ) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(stringResource(R.string.reco_title), style = MaterialTheme.typography.titleMedium)
+                                    wd.recos.forEach {
+                                        Text(
+                                            stringResource(
+                                                R.string.reco_skip,
+                                                "${it.session.subject} · ${typeName(ui.typeNames, it.session.typeId)}",
+                                                fmtTime(it.session.start),
+                                            ),
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Green,
+                                        )
                                     }
                                 }
                             }
                         }
-                        
-                        if (daySessions.isEmpty()) {
-                            item { Text(stringResource(R.string.no_sessions_today)) }
-                        } else {
-                            val color = colorForDay(day.dayOfWeek)
-                            items(daySessions.sortedBy { it.start }, key = { it.uid }) { s ->
-                                val tItem = todayItemsMap[s.uid]
-                                WeekSessionCard(
-                                    s = s,
-                                    typeLabel = typeName(ui.typeNames, s.typeId),
-                                    status = ui.att[s.uid],
-                                    badge = tItem?.badge,
-                                    color = color,
-                                    onDetails = { vm.showDetails(s.uid) },
-                                    onSet = { vm.setStatus(s.uid, it) }
-                                )
-                            }
+                    }
+                    
+                    if (wd.sessions.isEmpty()) {
+                        item(key = "empty-${wd.day}", contentType = "empty") { Text(stringResource(R.string.no_sessions_today)) }
+                    } else {
+                        val color = colorForDay(wd.day.dayOfWeek)
+                        items(wd.sessions, key = { it.uid }, contentType = { "session" }) { s ->
+                            WeekSessionCard(
+                                s = s,
+                                typeLabel = typeName(ui.typeNames, s.typeId),
+                                status = ui.att[s.uid],
+                                badge = wd.items[s.uid]?.badge,
+                                color = color,
+                                onDetails = { vm.showDetails(s.uid) },
+                                onSet = { vm.setStatus(s.uid, it) }
+                            )
                         }
                     }
                 }
@@ -422,14 +427,17 @@ fun WeekSessionCard(
     onSet: (Status?) -> Unit,
 ) {
     Card(onClick = onDetails, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.height(IntrinsicSize.Min)) {
+        // The colored time strip is painted behind the row: no intrinsic measurement needed.
+        val stripWidth = 64.dp
+        Row(
+            Modifier.drawBehind { drawRect(color, size = Size(stripWidth.toPx(), size.height)) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column(
                 Modifier
-                    .background(color)
-                    .padding(8.dp)
-                    .fillMaxHeight(),
+                    .width(stripWidth)
+                    .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
             ) {
                 Text(fmtTime(s.start), color = Color.White, fontWeight = FontWeight.Bold)
                 Text(fmtTime(s.end), color = Color.White, fontWeight = FontWeight.Bold)
@@ -498,15 +506,16 @@ fun SessionCard(
     }
 }
 
+private val STATUS_OPTIONS = listOf(
+    Status.PRESENT to R.string.status_present,
+    Status.ABSENT to R.string.status_absent,
+    Status.JUSTIFIED to R.string.status_justified,
+)
+
 @Composable
 fun StatusChips(current: Status?, onSet: (Status?) -> Unit) {
-    val options = listOf(
-        Status.PRESENT to R.string.status_present,
-        Status.ABSENT to R.string.status_absent,
-        Status.JUSTIFIED to R.string.status_justified,
-    )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { (st, label) ->
+        STATUS_OPTIONS.forEach { (st, label) ->
             FilterChip(
                 selected = current == st,
                 onClick = { onSet(if (current == st) null else st) },
