@@ -124,18 +124,20 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Refreshes the group list from Zeus (the cache is kept if the request fails). */
     fun fetchGroupsIfNeeded() {
-        if (repo.cachedGroups().isNotEmpty()) return
-        viewModelScope.launch {
-            val token = Auth.accessToken(app) ?: return@launch
-            runCatching { ZeusApi.groups(token) }
-                .onSuccess {
-                    if (it.isNotEmpty()) {
-                        repo.saveGroups(it)
-                        reload()
-                    }
+        viewModelScope.launch { refreshGroups() }
+    }
+
+    private suspend fun refreshGroups() {
+        val token = Auth.accessToken(app) ?: return
+        runCatching { ZeusApi.groups(token) }
+            .onSuccess {
+                if (it.isNotEmpty() && it != repo.cachedGroups()) {
+                    repo.saveGroups(it)
+                    reload()
                 }
-        }
+            }
     }
 
     fun showMessage(text: String) {
@@ -215,6 +217,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         reload()
         viewModelScope.launch {
             val doFull = full || repo.settings().lastFull == 0L
+            refreshGroups()
             val result = repo.sync(doFull) { done, total ->
                 progress = done to total
                 _ui.update { it.copy(progress = done to total) }
