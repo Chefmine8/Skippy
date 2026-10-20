@@ -65,10 +65,11 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val availableExams = repo.availableExams()
         val allRaw = repo.allRawSessions()
         val manualMerges = repo.subjectMerges()
+        val resolvedManualMerges = Stats.resolveTransitiveMerges(manualMerges)
         val mergeMap = if (s.mergeSubjectsByExam) {
-            Stats.resolveSubjectMerges(sessions, examMappings, availableExams, names) + manualMerges
+            Stats.resolveSubjectMerges(sessions, examMappings, availableExams, names) + resolvedManualMerges
         } else {
-            manualMerges
+            resolvedManualMerges
         }
         val mergedAllRaw = if (mergeMap.isEmpty()) allRaw else allRaw.map {
             val m = mergeMap[it.subject] ?: it.subject

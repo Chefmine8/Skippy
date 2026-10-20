@@ -29,6 +29,7 @@ data class SubjectStats(
     val associatedExams: List<SubjectExamInfo> = emptyList(),
     val targetExam: SubjectExamInfo? = null,
     val allExamsPassed: Boolean = false,
+    val originalSubjects: List<String> = listOf(subject),
 ) {
     val key: String get() = Stats.key(subject, typeId)
     val title: String get() = "$subject · $typeLabel"
@@ -120,6 +121,23 @@ object Stats {
         return result
     }
 
+    /** Resolves multi-hop manual subject merges (e.g. A -> B and B -> C => A -> C). */
+    fun resolveTransitiveMerges(merges: Map<String, String>): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+        for (start in merges.keys) {
+            var current = start
+            val visited = mutableSetOf<String>()
+            while (current in merges && current !in visited) {
+                visited.add(current)
+                current = merges[current] ?: break
+            }
+            if (current != start) {
+                result[start] = current
+            }
+        }
+        return result
+    }
+
     /**
      * Whole-term stats for every (subject, type) pair.
      * Required attendance is [pct]% over [total] sessions, so the absence budget is
@@ -142,10 +160,11 @@ object Stats {
     ): List<SubjectStats> {
         val normalizedMappings = examMappings
         val examStartTimes = examCutoffs(allSessionsForCutoffs, typeNames)
+        val resolvedManualMerges = resolveTransitiveMerges(manualMerges)
         val mergeMap = if (mergeSubjectsByExam) {
-            resolveSubjectMerges(sessions, normalizedMappings, availableExams, typeNames) + manualMerges
+            resolveSubjectMerges(sessions, normalizedMappings, availableExams, typeNames) + resolvedManualMerges
         } else {
-            manualMerges
+            resolvedManualMerges
         }
 
         val (_, rawCourseSessions) = sessions.partition { ExamMatch.isExamSession(it, typeNames) }
@@ -157,7 +176,7 @@ object Stats {
         val courseBySubject = courseSessions.groupBy { it.subject }
 
         return courseBySubject.flatMap { (subject, subjectSessions) ->
-            val originalSubjs = mergeMap.filterValues { it == subject }.keys.ifEmpty { setOf(subject) }
+            val originalSubjs = (mergeMap.filterValues { it == subject }.keys + subject).toSet()
             val resolvedExams = originalSubjs.flatMap {
                 ExamMatch.resolveExams(it, normalizedMappings, availableExams).first
             }.distinct()
@@ -184,7 +203,7 @@ object Stats {
                 ?: examInfos.firstOrNull { it.start == Long.MAX_VALUE }
             val allExamsPassed = examInfos.isNotEmpty() && examInfos.all { it.start <= now && it.start != Long.MAX_VALUE }
             val finalExamInfos = examInfos.map { it.copy(isNext = it == targetExam) }
-            val examFound = examInfos.any { it.start != Long.MAX_VALUE } || (isManual && resolvedExams.isEmpty())
+            val examFound = examInfos.any { it.start != Long.MAX_VALUE } || isManual
 
             val cutoff = targetExam?.takeIf { it.start != Long.MAX_VALUE }?.start
             val withinTerm = if (cutoff != null) subjectSessions.filter { it.start < cutoff } else subjectSessions
@@ -224,6 +243,7 @@ object Stats {
                     associatedExams = finalExamInfos,
                     targetExam = targetExam,
                     allExamsPassed = allExamsPassed,
+                    originalSubjects = originalSubjs.toList().sorted(),
                 )
             }
         }.sortedWith(compareBy({ it.subject.lowercase() }, { it.typeId }))

@@ -145,6 +145,29 @@ class StatsTest {
         assertEquals(1, statsManual.size)
         assertEquals("Algorithmique", statsManual.first().subject)
         assertEquals(4, statsManual.first().total)
+        assertEquals(listOf("Algorithmique", "Structures de données"), statsManual.first().originalSubjects)
+
+        // Case 4: Transitive manual merges: A -> B and B -> C
+        val transitiveSessions = listOf(
+            Session("a1", "A", 3, 100L, 200L, "", false, ""),
+            Session("b1", "B", 3, 150L, 250L, "", false, ""),
+            Session("c1", "C", 3, 200L, 300L, "", false, ""),
+        )
+        val statsTransitive = Stats.compute(
+            sessions = transitiveSessions,
+            att = emptyMap(),
+            prefs = emptyMap(),
+            examMappings = emptyMap(),
+            availableExams = emptyList(),
+            now = 50L,
+            pct = 60,
+            manualMerges = mapOf("A" to "B", "B" to "C"),
+            typeLabel = { "CM" },
+        )
+        assertEquals(1, statsTransitive.size)
+        assertEquals("C", statsTransitive.first().subject)
+        assertEquals(3, statsTransitive.first().total)
+        assertEquals(listOf("A", "B", "C"), statsTransitive.first().originalSubjects)
     }
 
     @Test

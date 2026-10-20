@@ -174,6 +174,9 @@ class Repo private constructor(ctx: Context) {
         if (target.isNullOrBlank() || target == subject) {
             o.remove(subject)
         } else {
+            if (o.optString(target, "") == subject) {
+                o.remove(target)
+            }
             o.put(subject, target)
         }
         sp.edit().putString("subjectMerges", o.toString()).apply()

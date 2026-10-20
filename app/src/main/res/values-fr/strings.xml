@@ -151,4 +151,7 @@
     <string name="unmerge_subject">Dissocier</string>
     <string name="merge_subject_dialog_title">Fusionner \"%1$s\" avec…</string>
     <string name="none_or_unmerged">Aucune (laisser séparée)</string>
+    <string name="add_custom_exam">+ Ajouter \"%1$s\"</string>
+    <string name="exam_date_pending">date à venir</string>
+    <string name="merged_from_subjects">Matières fusionnées : %1$s</string>
 </resources>

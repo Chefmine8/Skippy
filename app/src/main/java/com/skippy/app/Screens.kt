@@ -612,15 +612,16 @@ fun SubjectsScreen(ui: UiState, vm: AppViewModel) {
             HiddenSubjectsCard(ui.hiddenSubjects.sorted()) { vm.setSubjectHidden(it, false) }
         }
         items(groups, key = { it.first }) { (subject, rows) ->
+            val origSubjs = rows.firstOrNull()?.originalSubjects?.ifEmpty { listOf(subject) } ?: listOf(subject)
             SubjectCard(
                 subject = subject,
                 rows = rows,
                 availableExams = ui.availableExams,
                 examMappings = ui.examMappings,
-                onPref = { vm.setPref(subject, it) },
-                onExclude = { vm.setSubjectExcluded(subject, true) },
-                onHide = { vm.setSubjectHidden(subject, true) },
-                onExamMappingChanged = { vm.setExamMappings(subject, it) },
+                onPref = { pref -> origSubjs.forEach { vm.setPref(it, pref) } },
+                onExclude = { origSubjs.forEach { vm.setSubjectExcluded(it, true) } },
+                onHide = { origSubjs.forEach { vm.setSubjectHidden(it, true) } },
+                onExamMappingChanged = { selected -> origSubjs.forEach { vm.setExamMappings(it, selected) } },
                 requiredPct = ui.settings.requiredPct,
             )
         }
@@ -641,6 +642,7 @@ fun SubjectCard(
 ) {
     var showDialog by remember { mutableStateOf(false) }
     val first = rows.first()
+    val origSubjs = first.originalSubjects
     val associatedExams = first.associatedExams
     val targetExam = first.targetExam
     val totalSt = remember(rows, requiredPct) { Stats.totalStats(rows, requiredPct) }
@@ -652,6 +654,13 @@ fun SubjectCard(
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(subject, style = MaterialTheme.typography.titleMedium)
+            if (origSubjs.size > 1) {
+                Text(
+                    stringResource(R.string.merged_from_subjects, origSubjs.joinToString(", ")),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(
                     onClick = onExclude,
@@ -677,11 +686,16 @@ fun SubjectCard(
                     ) {
                         associatedExams.forEach { ex ->
                             val isTarget = ex == targetExam
+                            val dateLabel = if (ex.start == Long.MAX_VALUE) {
+                                " (${stringResource(R.string.exam_date_pending)})"
+                            } else {
+                                " (${fmtDate(ex.start)})"
+                            }
                             SuggestionChip(
                                 onClick = {},
                                 label = {
                                     Text(
-                                        "${ex.indexedLabel} (${fmtDate(ex.start)})",
+                                        "${ex.indexedLabel}$dateLabel",
                                         fontWeight = if (isTarget) FontWeight.Bold else FontWeight.Normal,
                                     )
                                 },
@@ -700,8 +714,9 @@ fun SubjectCard(
                             fontWeight = FontWeight.Medium,
                         )
                     } else if (targetExam != null) {
+                        val targetDate = if (targetExam.start == Long.MAX_VALUE) "" else " · ${fmtDate(targetExam.start)}"
                         Text(
-                            stringResource(R.string.target_exam_line, targetExam.indexedLabel),
+                            stringResource(R.string.target_exam_line, targetExam.indexedLabel) + targetDate,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
@@ -1018,7 +1033,13 @@ fun SettingsScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
                 Text(stringResource(R.string.set_merge_exams), style = MaterialTheme.typography.bodyLarge)
                 Text(stringResource(R.string.set_merge_exams_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Switch(checked = d.mergeSubjectsByExam, onCheckedChange = { d = d.copy(mergeSubjectsByExam = it) })
+            Switch(
+                checked = d.mergeSubjectsByExam,
+                onCheckedChange = {
+                    d = d.copy(mergeSubjectsByExam = it)
+                    vm.saveSettings(d)
+                }
+            )
         }
 
         // Activity types: Zeus only gives a number (idType), the user gives it a name.
@@ -1116,7 +1137,7 @@ fun SettingsScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
                         }
                     }
                     if (showMergeDialog) {
-                        val otherSubjects = courseSubjects.filter { it != subj }
+                        val otherSubjects = courseSubjects.filter { it != subj && ui.subjectMerges[it] != subj }
                         AlertDialog(
                             onDismissRequest = { showMergeDialog = false },
                             title = { Text(stringResource(R.string.merge_subject_dialog_title, subj)) },
@@ -1250,9 +1271,13 @@ fun ExamSelectionDialog(
     var isAuto by remember { mutableStateOf(!isManual) }
     var isNone by remember { mutableStateOf(isManual && currentMappedTitles.isEmpty()) }
     var selectedExams by remember {
-        mutableStateOf(if (isManual) currentMappedTitles.toSet() else emptySet())
+        mutableStateOf(if (isManual) currentMappedTitles.toSet() else autoMatches.toSet())
     }
     var search by remember { mutableStateOf("") }
+    var customExams by remember { mutableStateOf(emptySet<String>()) }
+    val allSelectableExams = remember(availableExams, customExams) {
+        (availableExams + customExams).distinct().sortedWith(compareBy { it.lowercase() })
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1280,7 +1305,7 @@ fun ExamSelectionDialog(
                         .clickable {
                             isAuto = true
                             isNone = false
-                            selectedExams = emptySet()
+                            selectedExams = autoMatches.toSet()
                         }
                         .padding(vertical = 6.dp),
                 ) {
@@ -1311,42 +1336,64 @@ fun ExamSelectionDialog(
                     Text(stringResource(R.string.exam_none), style = MaterialTheme.typography.bodyMedium)
                 }
 
-                if (availableExams.isNotEmpty()) {
-                    Text(
-                        stringResource(R.string.exam_list_header),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    if (availableExams.size > 4) {
-                        OutlinedTextField(
-                            value = search,
-                            onValueChange = { search = it },
-                            placeholder = { Text(stringResource(R.string.search_exams)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                Text(
+                    stringResource(R.string.exam_list_header),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    placeholder = { Text(stringResource(R.string.search_exams)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                )
+                val filteredExams = remember(search, allSelectableExams) {
+                    if (search.isBlank()) allSelectableExams
+                    else allSelectableExams.filter { it.contains(search, ignoreCase = true) }
+                }
+                val canAddCustom = search.isNotBlank() && allSelectableExams.none { it.equals(search.trim(), ignoreCase = true) }
+                if (canAddCustom) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val trimmed = search.trim()
+                                customExams = customExams + trimmed
+                                isAuto = false
+                                isNone = false
+                                selectedExams = selectedExams + trimmed
+                                search = ""
+                            }
+                            .padding(vertical = 6.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.add_custom_exam, search.trim()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
-                    val filteredExams = remember(search, availableExams) {
-                        if (search.isBlank()) availableExams
-                        else availableExams.filter { it.contains(search, ignoreCase = true) }
-                    }
+                }
+                if (filteredExams.isNotEmpty()) {
                     filteredExams.forEach { examTitle ->
-                        val isChecked = !isAuto && !isNone && examTitle in selectedExams
+                        val isChecked = !isNone && (if (isAuto) examTitle in autoMatches else examTitle in selectedExams)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
+                                    val currentBase = if (isAuto) autoMatches.toSet() else selectedExams
                                     isAuto = false
-                                    isNone = false
-                                    selectedExams = if (isChecked) {
-                                        val next = selectedExams - examTitle
-                                        if (next.isEmpty()) isNone = true
-                                        next
+                                    val next = if (isChecked) {
+                                        currentBase - examTitle
                                     } else {
-                                        selectedExams + examTitle
+                                        currentBase + examTitle
                                     }
+                                    selectedExams = next
+                                    isNone = next.isEmpty()
                                 }
                                 .padding(vertical = 4.dp),
                         ) {
@@ -1358,12 +1405,12 @@ fun ExamSelectionDialog(
                             Text(examTitle, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
-                } else {
+                } else if (!canAddCustom) {
                     Text(
                         stringResource(R.string.exam_none_in_schedule),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
             }

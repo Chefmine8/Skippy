@@ -151,4 +151,7 @@
     <string name="unmerge_subject">Unmerge</string>
     <string name="merge_subject_dialog_title">Merge \"%1$s\" with…</string>
     <string name="none_or_unmerged">None (keep separate)</string>
+    <string name="add_custom_exam">+ Add \"%1$s\"</string>
+    <string name="exam_date_pending">date pending</string>
+    <string name="merged_from_subjects">Merged subjects: %1$s</string>
 </resources>

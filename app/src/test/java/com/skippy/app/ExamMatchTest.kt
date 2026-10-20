@@ -19,9 +19,18 @@ class ExamMatchTest {
         val s2 = Session("2", "Maths", 15, 0L, 0L, "", false, "")
         assertTrue(ExamMatch.isExamSession(s2, typeNames))
 
-        // 3. By subject title parsing ("EXAM ...")
+        // 3. By subject title parsing ("EXAM ...", "[EXAM] ...", "Partiel ...", "DS ...")
         val s3 = Session("3", "EXAM DRG1", 3, 0L, 0L, "", false, "")
         assertTrue(ExamMatch.isExamSession(s3, typeNames))
+
+        val sBracket = Session("3b", "[EXAM] ALGO", 3, 0L, 0L, "", false, "")
+        assertTrue(ExamMatch.isExamSession(sBracket, typeNames))
+
+        val sPartiel = Session("3c", "Partiel - Mathématiques", 3, 0L, 0L, "", false, "")
+        assertTrue(ExamMatch.isExamSession(sPartiel, typeNames))
+
+        val sDs = Session("3d", "DS Physique", 3, 0L, 0L, "", false, "")
+        assertTrue(ExamMatch.isExamSession(sDs, typeNames))
 
         // 4. Regular class
         val s4 = Session("4", "Maths", 3, 0L, 0L, "", false, "")

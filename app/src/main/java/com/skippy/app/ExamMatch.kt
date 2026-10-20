@@ -15,13 +15,18 @@ object ExamMatch {
 
     private fun squash(s: String): String = Repo.plain(s).replace(NON_ALPHANUM_REGEX, "")
 
-    fun isExamTitle(subject: String): Boolean = Repo.plain(subject).startsWith("exam")
+    private val EXAM_PREFIX_REGEX = Regex("^(?:\\[?(?:exam|examen|partiel|ds|evaluation)\\b\\]?)[^a-z0-9]*", RegexOption.IGNORE_CASE)
+
+    fun isExamTitle(subject: String): Boolean {
+        val p = Repo.plain(subject)
+        return p.startsWith("exam") || EXAM_PREFIX_REGEX.containsMatchIn(p)
+    }
 
     /**
      * Determines if a session represents an exam by checking:
      * 1. Activity type ID matching EXAM_TYPE_ID (type 2 in Zeus).
      * 2. Activity type label (customized in Settings) containing "exam".
-     * 3. Subject title parsing (starts with "exam").
+     * 3. Subject title parsing (starts with "exam", "[exam]", "examen", "partiel", "ds", etc.).
      */
     fun isExamSession(session: Session, typeNames: Map<Int, String> = emptyMap()): Boolean {
         if (session.typeId == EXAM_TYPE_ID) return true
@@ -30,8 +35,10 @@ object ExamMatch {
         return isExamTitle(session.subject)
     }
 
-    private fun remainder(examSubject: String): String =
-        Repo.plain(examSubject).removePrefix("exam").trim()
+    private fun remainder(examSubject: String): String {
+        val p = Repo.plain(examSubject)
+        return p.replace(EXAM_PREFIX_REGEX, "").trim()
+    }
 
     fun matches(examSubject: String, courseSubject: String): Boolean {
         val a = squash(remainder(examSubject))
