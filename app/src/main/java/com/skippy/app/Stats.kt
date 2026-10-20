@@ -31,6 +31,7 @@ data class SubjectStats(
     val allExamsPassed: Boolean = false,
     val originalSubjects: List<String> = listOf(subject),
     val examPeriodStats: Map<String, ExamPeriodStats> = emptyMap(),
+    val endOfTermStats: ExamPeriodStats? = null,
 ) {
     val key: String get() = Stats.key(subject, typeId)
     val title: String get() = "$subject · $typeLabel"
@@ -38,7 +39,20 @@ data class SubjectStats(
     val rate: Int? get() = if (answered == 0) null else (present * 100f / answered).roundToInt()
 
     fun forExam(exam: SubjectExamInfo?): SubjectStats {
-        if (exam == null) return this
+        if (exam == null) {
+            val ep = endOfTermStats ?: return this
+            return copy(
+                present = ep.present,
+                absent = ep.absent,
+                pending = ep.pending,
+                upcoming = ep.upcoming,
+                total = ep.total,
+                allowed = ep.allowed,
+                margin = ep.margin,
+                mappedExamTitle = associatedExams.firstOrNull()?.indexedLabel,
+                targetExam = null,
+            )
+        }
         val ep = examPeriodStats[exam.indexedLabel] ?: return this
         return copy(
             present = ep.present,
@@ -237,12 +251,9 @@ object Stats {
 
         return courseBySubject.flatMap { (subject, subjectSessions) ->
             val originalSubjs = (mergeMap.filterValues { it == subject }.keys + subject).toSet()
-            val resolvedExams = originalSubjs.flatMap {
-                ExamMatch.resolveExams(it, normalizedMappings, availableExams).first
-            }.distinct()
-            val isManual = originalSubjs.any {
-                ExamMatch.resolveExams(it, normalizedMappings, availableExams).second
-            }
+            val resolvedPairs = originalSubjs.map { ExamMatch.resolveExams(it, normalizedMappings, availableExams) }
+            val resolvedExams = resolvedPairs.flatMap { it.first }.distinct()
+            val isManual = resolvedPairs.any { it.second }
 
             val examList = resolvedExams.flatMap { entry ->
                 val (title, explicitStart) = ExamMatch.parseExamKey(entry)
@@ -305,7 +316,8 @@ object Stats {
 
             subjectSessions.groupBy { it.typeId }.values.map { typeSessions ->
                 val first = typeSessions.first()
-                val active = calcPeriod(typeSessions, cutoff)
+                val fullTerm = calcPeriod(typeSessions, null)
+                val active = if (cutoff != null) calcPeriod(typeSessions, cutoff) else fullTerm
                 val perExam = finalExamInfos.associate { ex ->
                     ex.indexedLabel to calcPeriod(typeSessions, ex.start.takeIf { it != Long.MAX_VALUE })
                 }
@@ -329,6 +341,7 @@ object Stats {
                     allExamsPassed = allExamsPassed,
                     originalSubjects = originalSubjs.toList().sorted(),
                     examPeriodStats = perExam,
+                    endOfTermStats = fullTerm,
                 )
             }
         }.sortedWith(compareBy({ it.subject.lowercase() }, { it.typeId }))
@@ -412,9 +425,7 @@ object Stats {
                 val nextExam = base.associatedExams.firstOrNull {
                     it.start > c.start && it.start != Long.MAX_VALUE
                 } ?: base.associatedExams.firstOrNull { it.start == Long.MAX_VALUE }
-                if (nextExam != null) {
-                    return base.forExam(nextExam)
-                }
+                return base.forExam(nextExam)
             }
             return base
         }

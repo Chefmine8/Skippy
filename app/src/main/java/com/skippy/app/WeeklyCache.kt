@@ -79,6 +79,20 @@ object WeeklyCache {
                 }
                 so.put("examPeriodStats", periodObj)
 
+                st.endOfTermStats?.let { ep ->
+                    so.put(
+                        "endOfTermStats",
+                        JSONObject()
+                            .put("present", ep.present)
+                            .put("absent", ep.absent)
+                            .put("pending", ep.pending)
+                            .put("upcoming", ep.upcoming)
+                            .put("total", ep.total)
+                            .put("allowed", ep.allowed)
+                            .put("margin", ep.margin)
+                    )
+                }
+
                 statsArr.put(so)
             }
             obj.put("stats", statsArr)
@@ -165,6 +179,17 @@ object WeeklyCache {
                         )
                     }
                 }
+                val endOfTermStats = so.optJSONObject("endOfTermStats")?.let { po ->
+                    ExamPeriodStats(
+                        present = po.getInt("present"),
+                        absent = po.getInt("absent"),
+                        pending = po.getInt("pending"),
+                        upcoming = po.getInt("upcoming"),
+                        total = po.getInt("total"),
+                        allowed = po.getInt("allowed"),
+                        margin = po.getInt("margin"),
+                    )
+                }
                 stats.add(SubjectStats(
                     subject = subject,
                     typeId = so.getInt("typeId"),
@@ -185,6 +210,7 @@ object WeeklyCache {
                     allExamsPassed = so.optBoolean("allExamsPassed", false),
                     originalSubjects = origSubjects,
                     examPeriodStats = examPeriodStats,
+                    endOfTermStats = endOfTermStats,
                 ))
             }
 

@@ -188,7 +188,8 @@ class Repo private constructor(ctx: Context) {
         val mappedExams = examMappings().values.flatten().filter {
             it != ExamMatch.AUTO_MAPPING && it != ExamMatch.NONE_MAPPING
         }
-        val startsByTitle = Stats.examAllStartTimes(allRawSessions(), types)
+        val extraTitles = mappedExams.map { ExamMatch.parseExamKey(it).first }.toSet()
+        val startsByTitle = Stats.examAllStartTimes(allRawSessions(), types, extraTitles)
         val fromSchedule = startsByTitle.flatMap { (title, starts) ->
             if (starts.size > 1) starts.map { ExamMatch.encodeExamKey(title, it) }
             else listOf(title)

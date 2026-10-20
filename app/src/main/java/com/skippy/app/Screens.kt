@@ -585,8 +585,12 @@ private fun DetailLine(label: Int, value: String) {
 fun SubjectsScreen(ui: UiState, vm: AppViewModel) {
     val ctx = LocalContext.current
     val groups = remember(ui.stats) { ui.stats.groupBy { it.subject }.toList() }
-    val examStarts = remember(ui.allRawSessions, ui.typeNames) {
-        Stats.examAllStartTimes(ui.allRawSessions, ui.typeNames)
+    val examStarts = remember(ui.allRawSessions, ui.typeNames, ui.examMappings) {
+        val extraTitles = ui.examMappings.values.flatten()
+            .filter { it != ExamMatch.AUTO_MAPPING && it != ExamMatch.NONE_MAPPING }
+            .map { ExamMatch.parseExamKey(it).first }
+            .toSet()
+        Stats.examAllStartTimes(ui.allRawSessions, ui.typeNames, extraTitles)
     }
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -1097,8 +1101,12 @@ fun SettingsScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
 
         // Exam Mappings section
         val courseSubjects = ui.allSubjects.filter { it !in ui.excludedSubjects }
-        val examStarts = remember(ui.allRawSessions, ui.typeNames) {
-            Stats.examAllStartTimes(ui.allRawSessions, ui.typeNames)
+        val examStarts = remember(ui.allRawSessions, ui.typeNames, ui.examMappings) {
+            val extraTitles = ui.examMappings.values.flatten()
+                .filter { it != ExamMatch.AUTO_MAPPING && it != ExamMatch.NONE_MAPPING }
+                .map { ExamMatch.parseExamKey(it).first }
+                .toSet()
+            Stats.examAllStartTimes(ui.allRawSessions, ui.typeNames, extraTitles)
         }
         if (courseSubjects.isNotEmpty()) {
             Text(stringResource(R.string.exam_mapping_title), style = MaterialTheme.typography.titleMedium)
@@ -1310,15 +1318,7 @@ fun ExamSelectionDialog(
     var isAuto by remember { mutableStateOf(!isManual) }
     var isNone by remember { mutableStateOf(isManual && currentMappedTitles.isEmpty()) }
     var selectedExams by remember {
-        val initialManual = currentMappedTitles.flatMap { mapped ->
-            val (mTitle, mStart) = ExamMatch.parseExamKey(mapped)
-            if (mStart != null) {
-                listOf(mapped)
-            } else {
-                val matchingKeys = availableExams.filter { ExamMatch.parseExamKey(it).first == mTitle }
-                matchingKeys.ifEmpty { listOf(mapped) }
-            }
-        }.toSet()
+        val initialManual = ExamMatch.expandMappedSelection(currentMappedTitles, availableExams)
         mutableStateOf(if (isManual) initialManual else autoMatches.toSet())
     }
     var search by remember { mutableStateOf("") }

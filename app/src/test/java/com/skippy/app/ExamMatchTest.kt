@@ -158,5 +158,11 @@ class ExamMatchTest {
         assertEquals("EXAM MATHS" to 500L, ExamMatch.parseExamKey("EXAM MATHS@500"))
         assertEquals("EXAM MATHS" to null, ExamMatch.parseExamKey("EXAM MATHS"))
         assertEquals("EXAM MATHS@500", ExamMatch.encodeExamKey("EXAM MATHS", 500L))
+
+        // Expanding bare manual titles to encoded keys and unchecking one occurrence
+        val expanded = ExamMatch.expandMappedSelection(listOf("EXAM MATHS"), exams)
+        assertEquals(setOf("EXAM MATHS@500", "EXAM MATHS@1000"), expanded)
+        val afterUncheckFirst = expanded - "EXAM MATHS@500"
+        assertEquals(setOf("EXAM MATHS@1000"), afterUncheckFirst)
     }
 }

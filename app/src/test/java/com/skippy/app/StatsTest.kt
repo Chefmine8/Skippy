@@ -396,4 +396,82 @@ class StatsTest {
         assertEquals(1, sAfterE1.absent)
         assertEquals(2, sAfterE1.margin)
     }
+
+    @Test
+    fun testPostFinalExamForDayAndEndOfTermForExam() {
+        val sessions = listOf(
+            // Period 1 before Exam 1 (t = 500): 2 sessions -> allowed = 0
+            Session("m1", "Maths", 3, 100L, 200L, "", false, ""),
+            Session("m2", "Maths", 3, 200L, 300L, "", false, ""),
+            Session("e1", "Maths", EXAM_TYPE_ID, 500L, 600L, "", false, ""),
+            // Period 2 between Exam 1 and Exam 2 (t = 1000): +2 sessions (total 4 -> allowed = 1)
+            Session("m3", "Maths", 3, 600L, 700L, "", false, ""),
+            Session("m4", "Maths", 3, 700L, 800L, "", false, ""),
+            Session("e2", "Maths", EXAM_TYPE_ID, 1000L, 1100L, "", false, ""),
+            // Post-Exam 2 sessions (after all exams): +2 sessions (full term total 6 -> allowed = 2)
+            Session("m5", "Maths", 3, 1200L, 1300L, "", false, ""),
+            Session("m6", "Maths", 3, 1300L, 1400L, "", false, ""),
+        )
+        val att = mapOf("m1" to Status.ABSENT)
+        val encodedExams = listOf("Maths@500", "Maths@1000")
+
+        // While in Period 1 (now = 250L), targetExam is Maths 1 (margin = 0), Exam 2 has margin = 0 (1 allowed - 1 absent),
+        // but full term after Exam 2 has 6 sessions -> allowed = 2, absent = 1 -> margin = 1!
+        val statsP1 = Stats.compute(
+            sessions = sessions,
+            att = att,
+            prefs = emptyMap(),
+            examMappings = emptyMap(),
+            availableExams = encodedExams,
+            now = 250L,
+            pct = 60,
+            typeLabel = { "CM" },
+        )
+        val stP1 = statsP1.first()
+        assertEquals(-1, stP1.margin)
+        assertEquals(0, stP1.forExam(stP1.associatedExams[1]).margin)
+        assertEquals(1, stP1.forExam(null).margin)
+        assertEquals(6, stP1.forExam(null).total)
+
+        // Stats.forDay on a day after the final exam (m5 at 1200..1300L) uses full-term stats (margin = 1 -> SKIP_SUGGESTED)
+        val postFinalPlan = Stats.forDay(
+            todays = listOf(sessions[6]), // m5 at 1200..1300L
+            att = att,
+            stats = statsP1.associateBy { it.key },
+            s = AppSettings(reserve = 0, morningCutoffHour = 24),
+            now = 250L,
+        )
+        assertEquals(Badge.SKIP_SUGGESTED, postFinalPlan.first().badge)
+    }
+
+    @Test
+    fun testManualExtraExamTitleMultipleOccurrences() {
+        // Sessions where the exam has typeId = 7 ("Soutenance") and a title not starting with "EXAM"
+        val sessions = listOf(
+            Session("c1", "Projet", 3, 100L, 200L, "", false, ""),
+            Session("c2", "Projet", 3, 200L, 300L, "", false, ""),
+            Session("s1", "Soutenance Projet", 7, 500L, 600L, "", false, ""),
+            Session("c3", "Projet", 3, 700L, 800L, "", false, ""),
+            Session("c4", "Projet", 3, 800L, 900L, "", false, ""),
+            Session("s2", "Soutenance Projet", 7, 1000L, 1100L, "", false, ""),
+        )
+        val extraStarts = Stats.examAllStartTimes(sessions, emptyMap(), setOf("Soutenance Projet"))
+        assertEquals(listOf(500L, 1000L), extraStarts["Soutenance Projet"])
+
+        val stats = Stats.compute(
+            sessions = sessions.filter { it.subject == "Projet" },
+            att = emptyMap(),
+            prefs = emptyMap(),
+            examMappings = mapOf("Projet" to listOf("Soutenance Projet")),
+            availableExams = listOf("Soutenance Projet@500", "Soutenance Projet@1000"),
+            now = 650L,
+            pct = 60,
+            typeLabel = { "CM" },
+            allSessionsForCutoffs = sessions,
+        )
+        val st = stats.first()
+        assertEquals(2, st.associatedExams.size)
+        assertEquals("Projet 2", st.targetExam?.indexedLabel)
+        assertEquals(4, st.total)
+    }
 }

@@ -44,6 +44,21 @@ object ExamMatch {
         }
     }
 
+    /**
+     * Expands bare manual titles (e.g. `"EXAM MATHS"`) into all matching encoded keys in [availableExams]
+     * (e.g. `"EXAM MATHS@500"`, `"EXAM MATHS@1000"`), preserving explicit `"@start"` keys as-is.
+     */
+    fun expandMappedSelection(currentMappedTitles: List<String>, availableExams: List<String>): Set<String> =
+        currentMappedTitles.flatMap { mapped ->
+            val (mTitle, mStart) = parseExamKey(mapped)
+            if (mStart != null) {
+                listOf(mapped)
+            } else {
+                val matchingKeys = availableExams.filter { parseExamKey(it).first == mTitle }
+                matchingKeys.ifEmpty { listOf(mapped) }
+            }
+        }.toSet()
+
     private fun squash(s: String): String = Repo.plain(s).replace(NON_ALPHANUM_REGEX, "")
 
     private fun coreAlpha(s: String): String =
