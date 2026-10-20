@@ -188,11 +188,21 @@ class Repo private constructor(ctx: Context) {
         val mappedExams = examMappings().values.flatten().filter {
             it != ExamMatch.AUTO_MAPPING && it != ExamMatch.NONE_MAPPING
         }
-        return (rawSessions()
-            .filter { ExamMatch.isExamSession(it, types) }
-            .map { it.subject } + mappedExams)
+        val startsByTitle = Stats.examAllStartTimes(allRawSessions(), types)
+        val fromSchedule = startsByTitle.flatMap { (title, starts) ->
+            if (starts.size > 1) starts.map { ExamMatch.encodeExamKey(title, it) }
+            else listOf(title)
+        }
+        val filteredMapped = mappedExams.filter { mapped ->
+            val (t, s) = ExamMatch.parseExamKey(mapped)
+            s != null || (startsByTitle[t]?.size ?: 0) <= 1
+        }
+        return (fromSchedule + filteredMapped)
             .distinct()
-            .sortedWith(compareBy { it.lowercase() })
+            .sortedWith(
+                compareBy<String> { ExamMatch.parseExamKey(it).first.lowercase() }
+                    .thenBy { ExamMatch.parseExamKey(it).second ?: Long.MAX_VALUE }
+            )
     }
 
     /** Per subject (plain-normalized), the start of its last known Zeus "Examen" event. */
@@ -326,7 +336,7 @@ class Repo private constructor(ctx: Context) {
                 } else monday(today).minusWeeks(1)
                 // 42 weeks covers a full year including September retakes, so the exam cutoff used by
                 // Stats.examCutoffs() is far more likely to already be in the data.
-                val to = monday(today).plusWeeks(if (full) 42L else 9L)
+                val to = monday(today).plusWeeks(if (full) 42L else 20L)
                 val weeks = generateSequence(from) { it.plusWeeks(1) }.takeWhile { it < to }.toList()
 
                 val fetched = ArrayList<Triple<Long, Long, List<Session>>>()

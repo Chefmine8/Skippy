@@ -30,11 +30,28 @@ data class SubjectStats(
     val targetExam: SubjectExamInfo? = null,
     val allExamsPassed: Boolean = false,
     val originalSubjects: List<String> = listOf(subject),
+    val examPeriodStats: Map<String, ExamPeriodStats> = emptyMap(),
 ) {
     val key: String get() = Stats.key(subject, typeId)
     val title: String get() = "$subject · $typeLabel"
     val answered: Int get() = present + absent
     val rate: Int? get() = if (answered == 0) null else (present * 100f / answered).roundToInt()
+
+    fun forExam(exam: SubjectExamInfo?): SubjectStats {
+        if (exam == null) return this
+        val ep = examPeriodStats[exam.indexedLabel] ?: return this
+        return copy(
+            present = ep.present,
+            absent = ep.absent,
+            pending = ep.pending,
+            upcoming = ep.upcoming,
+            total = ep.total,
+            allowed = ep.allowed,
+            margin = ep.margin,
+            mappedExamTitle = exam.indexedLabel,
+            targetExam = exam,
+        )
+    }
 }
 
 enum class Badge { SKIP_SUGGESTED, CAN_SKIP, ATTEND, IMPORTANT, MUST_ATTEND }
@@ -45,11 +62,47 @@ object Stats {
     fun key(subject: String, typeId: Int) = "$subject#$typeId"
     fun key(s: Session) = key(s.subject, s.typeId)
 
+    private fun mergeContiguousExamStarts(list: List<Session>): List<Long> {
+        val sorted = list.sortedWith(compareBy({ it.start }, { it.end }))
+        if (sorted.isEmpty()) return emptyList()
+        val starts = mutableListOf<Long>()
+        var clusterStart = sorted.first().start
+        var clusterEnd = maxOf(sorted.first().start, sorted.first().end)
+        starts.add(clusterStart)
+        for (i in 1 until sorted.size) {
+            val s = sorted[i]
+            val sEnd = maxOf(s.start, s.end)
+            if (s.start <= clusterEnd) {
+                if (sEnd > clusterEnd) clusterEnd = sEnd
+            } else {
+                clusterStart = s.start
+                clusterEnd = sEnd
+                starts.add(clusterStart)
+            }
+        }
+        return starts
+    }
+
+    /** All distinct "Examen" session start times per exam title, sorted chronologically. */
+    fun examAllStartTimes(
+        sessions: List<Session>,
+        typeNames: Map<Int, String> = emptyMap(),
+        extraExamTitles: Set<String> = emptySet(),
+    ): Map<String, List<Long>> {
+        val detectedExams = sessions.filter { ExamMatch.isExamSession(it, typeNames) }
+        val detectedTitles = detectedExams.map { it.subject }.toSet()
+        val extraExams = if (extraExamTitles.isEmpty()) emptyList() else {
+            sessions.filter { it.subject in extraExamTitles && it.subject !in detectedTitles }
+        }
+        return (detectedExams + extraExams)
+            .groupBy { it.subject }
+            .mapValues { (_, list) -> mergeContiguousExamStarts(list) }
+            .filterValues { it.isNotEmpty() }
+    }
+
     /** Earliest "Examen" session start time per exam title. */
     fun examCutoffs(sessions: List<Session>, typeNames: Map<Int, String> = emptyMap()): Map<String, Long> =
-        sessions.filter { ExamMatch.isExamSession(it, typeNames) }
-            .groupBy { it.subject }
-            .mapValues { (_, list) -> list.minOf { it.start } }
+        examAllStartTimes(sessions, typeNames).mapValues { (_, starts) -> starts.first() }
 
     /** Builds subject merges when two or more subjects share an exam. */
     fun resolveSubjectMerges(
@@ -83,8 +136,9 @@ object Stats {
         val examToSubjects = mutableMapOf<String, MutableList<String>>()
         for ((subj, exams) in subjectExams) {
             for (exam in exams) {
-                if (exam.isNotBlank()) {
-                    examToSubjects.getOrPut(exam) { mutableListOf() }.add(subj)
+                val examTitle = ExamMatch.parseExamKey(exam).first
+                if (examTitle.isNotBlank()) {
+                    examToSubjects.getOrPut(examTitle) { mutableListOf() }.add(subj)
                 }
             }
         }
@@ -106,7 +160,9 @@ object Stats {
             if (group.size == 1) {
                 result[group.first()] = group.first()
             } else {
-                val groupExams = group.flatMap { subjectExams[it].orEmpty() }.distinct()
+                val groupExams = group.flatMap { subjectExams[it].orEmpty() }
+                    .map { ExamMatch.parseExamKey(it).first }
+                    .distinct()
                 val commonExam = groupExams.firstOrNull()?.replace(Regex("(?i)^exam\\s*"), "")?.trim()
                 val mergedName = if (!commonExam.isNullOrBlank() && (group.any { it.contains(commonExam, ignoreCase = true) } || commonExam.length > 2)) {
                     commonExam
@@ -159,7 +215,11 @@ object Stats {
         allSessionsForCutoffs: List<Session> = sessions,
     ): List<SubjectStats> {
         val normalizedMappings = examMappings
-        val examStartTimes = examCutoffs(allSessionsForCutoffs, typeNames)
+        val manuallyMappedTitles = normalizedMappings.values.flatten()
+            .filter { it != ExamMatch.AUTO_MAPPING && it != ExamMatch.NONE_MAPPING }
+            .map { ExamMatch.parseExamKey(it).first }
+            .toSet()
+        val allExamStarts = examAllStartTimes(allSessionsForCutoffs, typeNames, manuallyMappedTitles)
         val resolvedManualMerges = resolveTransitiveMerges(manualMerges)
         val mergeMap = if (mergeSubjectsByExam) {
             resolveSubjectMerges(sessions, normalizedMappings, availableExams, typeNames) + resolvedManualMerges
@@ -184,10 +244,16 @@ object Stats {
                 ExamMatch.resolveExams(it, normalizedMappings, availableExams).second
             }
 
-            val examList = resolvedExams.map { title ->
-                val start = examStartTimes[title] ?: Long.MAX_VALUE
-                title to start
-            }.sortedBy { it.second }
+            val examList = resolvedExams.flatMap { entry ->
+                val (title, explicitStart) = ExamMatch.parseExamKey(entry)
+                if (explicitStart != null) {
+                    listOf(title to explicitStart)
+                } else {
+                    val starts = allExamStarts[title]
+                    if (starts.isNullOrEmpty()) listOf(title to Long.MAX_VALUE)
+                    else starts.map { start -> title to start }
+                }
+            }.distinct().sortedWith(compareBy({ it.second }, { it.first.lowercase() }))
 
             val examInfos = examList.mapIndexed { idx, (title, start) ->
                 val indexedLabel = if (examList.size > 1) "$subject ${idx + 1}" else title
@@ -199,22 +265,23 @@ object Stats {
                 )
             }
 
-            val targetExam = examInfos.firstOrNull { it.start > now && it.start != Long.MAX_VALUE }
-                ?: examInfos.firstOrNull { it.start == Long.MAX_VALUE }
+            val targetIdx = examInfos.indexOfFirst { it.start > now && it.start != Long.MAX_VALUE }
+                .takeIf { it >= 0 }
+                ?: examInfos.indexOfFirst { it.start == Long.MAX_VALUE }.takeIf { it >= 0 }
             val allExamsPassed = examInfos.isNotEmpty() && examInfos.all { it.start <= now && it.start != Long.MAX_VALUE }
-            val finalExamInfos = examInfos.map { it.copy(isNext = it == targetExam) }
-            val examFound = examInfos.any { it.start != Long.MAX_VALUE } || isManual
+            val finalExamInfos = examInfos.mapIndexed { idx, info -> info.copy(isNext = idx == targetIdx) }
+            val targetExam = targetIdx?.let { finalExamInfos[it] }
+            val examFound = finalExamInfos.any { it.start != Long.MAX_VALUE } || isManual
 
             val cutoff = targetExam?.takeIf { it.start != Long.MAX_VALUE }?.start
-            val withinTerm = if (cutoff != null) subjectSessions.filter { it.start < cutoff } else subjectSessions
 
-            withinTerm.groupBy { it.typeId }.values.map { list ->
-                val first = list.first()
+            fun calcPeriod(typeSessions: List<Session>, examCutoff: Long?): ExamPeriodStats {
+                val filtered = if (examCutoff != null) typeSessions.filter { it.start < examCutoff } else typeSessions
                 var p = 0
                 var a = 0
                 var pend = 0
                 var up = 0
-                for (s in list) {
+                for (s in filtered) {
                     if (s.end <= now) {
                         when (att[s.uid]) {
                             null -> pend++
@@ -223,12 +290,9 @@ object Stats {
                         }
                     } else up++
                 }
-                val total = list.size
+                val total = filtered.size
                 val allowed = total * (100 - pct) / 100
-                SubjectStats(
-                    subject = subject,
-                    typeId = first.typeId,
-                    typeLabel = typeLabel(first.typeId),
+                return ExamPeriodStats(
                     present = p,
                     absent = a,
                     pending = pend,
@@ -236,6 +300,26 @@ object Stats {
                     total = total,
                     allowed = allowed,
                     margin = allowed - a,
+                )
+            }
+
+            subjectSessions.groupBy { it.typeId }.values.map { typeSessions ->
+                val first = typeSessions.first()
+                val active = calcPeriod(typeSessions, cutoff)
+                val perExam = finalExamInfos.associate { ex ->
+                    ex.indexedLabel to calcPeriod(typeSessions, ex.start.takeIf { it != Long.MAX_VALUE })
+                }
+                SubjectStats(
+                    subject = subject,
+                    typeId = first.typeId,
+                    typeLabel = typeLabel(first.typeId),
+                    present = active.present,
+                    absent = active.absent,
+                    pending = active.pending,
+                    upcoming = active.upcoming,
+                    total = active.total,
+                    allowed = active.allowed,
+                    margin = active.margin,
                     examFound = examFound,
                     pref = prefs[subject] ?: originalSubjs.mapNotNull { prefs[it] }.firstOrNull() ?: 1,
                     mappedExamTitle = targetExam?.indexedLabel ?: finalExamInfos.firstOrNull()?.indexedLabel,
@@ -244,6 +328,7 @@ object Stats {
                     targetExam = targetExam,
                     allExamsPassed = allExamsPassed,
                     originalSubjects = originalSubjs.toList().sorted(),
+                    examPeriodStats = perExam,
                 )
             }
         }.sortedWith(compareBy({ it.subject.lowercase() }, { it.typeId }))
@@ -320,6 +405,20 @@ object Stats {
         fun isMorning(sess: Session) = Instant.ofEpochMilli(sess.start).atZone(zone).hour < s.morningCutoffHour
         val morningCount = todays.count { isMorning(it) }
 
+        fun effectiveStats(c: Session): SubjectStats? {
+            val base = stats[key(c)] ?: return null
+            val curTarget = base.targetExam
+            if (curTarget != null && curTarget.start != Long.MAX_VALUE && c.start >= curTarget.start) {
+                val nextExam = base.associatedExams.firstOrNull {
+                    it.start > c.start && it.start != Long.MAX_VALUE
+                } ?: base.associatedExams.firstOrNull { it.start == Long.MAX_VALUE }
+                if (nextExam != null) {
+                    return base.forExam(nextExam)
+                }
+            }
+            return base
+        }
+
         fun highMargin(st: SubjectStats?): Boolean {
             if (st == null || st.upcoming <= 0) return false
             val needed = ceil(st.upcoming * s.exceptionThresholdPct / 100.0).toInt()
@@ -327,7 +426,7 @@ object Stats {
         }
 
         fun eligible(c: Session): Boolean {
-            val st = stats[key(c)]
+            val st = effectiveStats(c)
             if (st == null || st.pref == 0 || st.margin < 1) return false
             if (highMargin(st)) return true
             return isMorning(c) && morningCount == 1
@@ -335,8 +434,8 @@ object Stats {
 
         val candidates = todays.filter { it.end > now && att[it.uid] == null }
         val ranked = candidates.filter(::eligible).sortedWith(
-            compareByDescending<Session> { stats[key(it)]?.pref ?: 1 }
-                .thenByDescending { stats[key(it)]?.margin ?: 0 }
+            compareByDescending<Session> { effectiveStats(it)?.pref ?: 1 }
+                .thenByDescending { effectiveStats(it)?.margin ?: 0 }
                 .thenBy { it.start }
         )
 
@@ -344,8 +443,9 @@ object Stats {
         val badges = HashMap<String, Badge>()
         var picked = 0
         for (c in ranked) {
-            val k = key(c)
-            val left = remaining.getOrPut(k) { (stats[k]?.margin ?: 0) - s.reserve }
+            val eff = effectiveStats(c)
+            val k = "${key(c)}@${eff?.targetExam?.indexedLabel.orEmpty()}"
+            val left = remaining.getOrPut(k) { (eff?.margin ?: 0) - s.reserve }
             if (left >= 1) {
                 remaining[k] = left - 1
                 badges[c.uid] = if (picked < s.maxPerDay) { picked++; Badge.SKIP_SUGGESTED } else Badge.CAN_SKIP
@@ -354,7 +454,7 @@ object Stats {
         // Everything else: flag only the important ones and the ones with no margin left at all.
         for (c in candidates) {
             if (badges.containsKey(c.uid)) continue
-            val st = stats[key(c)] ?: continue // Skip excluded subjects
+            val st = effectiveStats(c) ?: continue // Skip excluded subjects
             when {
                 st.margin <= 0 -> badges[c.uid] = Badge.MUST_ATTEND
                 st.pref == 0 -> badges[c.uid] = Badge.IMPORTANT

@@ -37,6 +37,19 @@ data class SubjectExamInfo(
     val isNext: Boolean = false,
 )
 
+data class ExamPeriodStats(
+    val present: Int,
+    val absent: Int,
+    val pending: Int,
+    val upcoming: Int,
+    val total: Int,
+    val allowed: Int,
+    val margin: Int,
+) {
+    val answered: Int get() = present + absent
+    val rate: Int? get() = if (answered == 0) null else (present * 100f / answered).roundToInt()
+}
+
 data class TotalSubjectStats(
     val subject: String,
     val present: Int,

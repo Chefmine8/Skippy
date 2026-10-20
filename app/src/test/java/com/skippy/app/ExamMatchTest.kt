@@ -130,4 +130,33 @@ class ExamMatchTest {
         assertEquals(null, dgNone.mappedExamTitle)
         assertTrue(dgNone.isExamManual)
     }
+
+    @Test
+    fun testMultiExamNumberedAndEncodedKeys() {
+        // Numbered exams and abbreviated exam titles should match all occurrences
+        val exams = listOf(
+            "EXAM ALGO 1",
+            "EXAM ALGO 2",
+            "Algo - Examen 3",
+            "EXAM MATHS@500",
+            "EXAM MATHS@1000",
+        )
+        assertEquals(
+            listOf("EXAM ALGO 1", "EXAM ALGO 2", "Algo - Examen 3"),
+            ExamMatch.findAllAutoMatches("Algorithmique", exams)
+        )
+        assertEquals(
+            listOf("EXAM MATHS@500", "EXAM MATHS@1000"),
+            ExamMatch.findAllAutoMatches("Maths 1", exams)
+        )
+        assertEquals(
+            listOf("EXAM MATHS@500", "EXAM MATHS@1000"),
+            ExamMatch.findAllAutoMatches("Mathématiques", exams)
+        )
+
+        // Parsing & encoding
+        assertEquals("EXAM MATHS" to 500L, ExamMatch.parseExamKey("EXAM MATHS@500"))
+        assertEquals("EXAM MATHS" to null, ExamMatch.parseExamKey("EXAM MATHS"))
+        assertEquals("EXAM MATHS@500", ExamMatch.encodeExamKey("EXAM MATHS", 500L))
+    }
 }

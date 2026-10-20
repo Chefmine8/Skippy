@@ -34,6 +34,51 @@ object WeeklyCache {
                 so.put("pref", st.pref)
                 st.mappedExamTitle?.let { so.put("mappedExamTitle", it) }
                 so.put("isExamManual", st.isExamManual)
+                so.put("allExamsPassed", st.allExamsPassed)
+
+                val examsArr = JSONArray()
+                for (ex in st.associatedExams) {
+                    examsArr.put(
+                        JSONObject()
+                            .put("originalTitle", ex.originalTitle)
+                            .put("indexedLabel", ex.indexedLabel)
+                            .put("start", ex.start)
+                            .put("isNext", ex.isNext)
+                    )
+                }
+                so.put("associatedExams", examsArr)
+
+                st.targetExam?.let { ex ->
+                    so.put(
+                        "targetExam",
+                        JSONObject()
+                            .put("originalTitle", ex.originalTitle)
+                            .put("indexedLabel", ex.indexedLabel)
+                            .put("start", ex.start)
+                            .put("isNext", ex.isNext)
+                    )
+                }
+
+                val origArr = JSONArray()
+                st.originalSubjects.forEach { origArr.put(it) }
+                so.put("originalSubjects", origArr)
+
+                val periodObj = JSONObject()
+                for ((label, ep) in st.examPeriodStats) {
+                    periodObj.put(
+                        label,
+                        JSONObject()
+                            .put("present", ep.present)
+                            .put("absent", ep.absent)
+                            .put("pending", ep.pending)
+                            .put("upcoming", ep.upcoming)
+                            .put("total", ep.total)
+                            .put("allowed", ep.allowed)
+                            .put("margin", ep.margin)
+                    )
+                }
+                so.put("examPeriodStats", periodObj)
+
                 statsArr.put(so)
             }
             obj.put("stats", statsArr)
@@ -74,8 +119,54 @@ object WeeklyCache {
             val statsArr = obj.getJSONArray("stats")
             for (i in 0 until statsArr.length()) {
                 val so = statsArr.getJSONObject(i)
+                val subject = so.getString("subject")
+                val associatedExams = mutableListOf<SubjectExamInfo>()
+                val examsArr = so.optJSONArray("associatedExams")
+                if (examsArr != null) {
+                    for (j in 0 until examsArr.length()) {
+                        val eo = examsArr.getJSONObject(j)
+                        associatedExams.add(
+                            SubjectExamInfo(
+                                originalTitle = eo.getString("originalTitle"),
+                                indexedLabel = eo.getString("indexedLabel"),
+                                start = eo.getLong("start"),
+                                isNext = eo.optBoolean("isNext", false),
+                            )
+                        )
+                    }
+                }
+                val targetExam = so.optJSONObject("targetExam")?.let { eo ->
+                    SubjectExamInfo(
+                        originalTitle = eo.getString("originalTitle"),
+                        indexedLabel = eo.getString("indexedLabel"),
+                        start = eo.getLong("start"),
+                        isNext = eo.optBoolean("isNext", true),
+                    )
+                }
+                val origArr = so.optJSONArray("originalSubjects")
+                val origSubjects = if (origArr != null && origArr.length() > 0) {
+                    (0 until origArr.length()).map { origArr.getString(it) }
+                } else {
+                    listOf(subject)
+                }
+                val examPeriodStats = mutableMapOf<String, ExamPeriodStats>()
+                val periodObj = so.optJSONObject("examPeriodStats")
+                if (periodObj != null) {
+                    for (k in periodObj.keys()) {
+                        val po = periodObj.getJSONObject(k)
+                        examPeriodStats[k] = ExamPeriodStats(
+                            present = po.getInt("present"),
+                            absent = po.getInt("absent"),
+                            pending = po.getInt("pending"),
+                            upcoming = po.getInt("upcoming"),
+                            total = po.getInt("total"),
+                            allowed = po.getInt("allowed"),
+                            margin = po.getInt("margin"),
+                        )
+                    }
+                }
                 stats.add(SubjectStats(
-                    subject = so.getString("subject"),
+                    subject = subject,
                     typeId = so.getInt("typeId"),
                     typeLabel = so.getString("typeLabel"),
                     present = so.getInt("present"),
@@ -88,7 +179,12 @@ object WeeklyCache {
                     examFound = so.getBoolean("examFound"),
                     pref = so.getInt("pref"),
                     mappedExamTitle = if (so.has("mappedExamTitle")) so.getString("mappedExamTitle") else null,
-                    isExamManual = so.getBoolean("isExamManual")
+                    isExamManual = so.getBoolean("isExamManual"),
+                    associatedExams = associatedExams,
+                    targetExam = targetExam,
+                    allExamsPassed = so.optBoolean("allExamsPassed", false),
+                    originalSubjects = origSubjects,
+                    examPeriodStats = examPeriodStats,
                 ))
             }
 

@@ -107,8 +107,11 @@ object Notif {
         val names = repo.typeNames()
         val st = Stats.compute(
             sessions, repo.attendance(), repo.prefs(), repo.examMappings(), repo.availableExams(),
-            System.currentTimeMillis(), settings.requiredPct, names, repo::typeName
-        ).firstOrNull { it.subject == session.subject && it.typeId == session.typeId } ?: return
+            System.currentTimeMillis(), settings.requiredPct, names, repo::typeName,
+            mergeSubjectsByExam = settings.mergeSubjectsByExam,
+            manualMerges = repo.subjectMerges(),
+            allSessionsForCutoffs = repo.allRawSessions(),
+        ).firstOrNull { (it.subject == session.subject || session.subject in it.originalSubjects) && it.typeId == session.typeId } ?: return
         if (st.absent >= 1 && st.margin <= settings.alertAt) alert(ctx, st, settings.requiredPct)
     }
 }

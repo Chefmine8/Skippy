@@ -281,4 +281,119 @@ class StatsTest {
         assertEquals(9, s3.total)
         assertEquals(3, s3.allowed) // floor(9 * 0.4) = 3
     }
+
+    @Test
+    fun testMultiExamSameTitleAndPerExamPeriodStatsAndForDay() {
+        val sessions = listOf(
+            // Period 1 sessions before Exam 1 (t = 500)
+            Session("m1", "Maths", 3, 100L, 200L, "", false, ""),
+            Session("m2", "Maths", 3, 200L, 300L, "", false, ""),
+            Session("m3", "Maths", 3, 300L, 400L, "", false, ""),
+            Session("m4", "Maths", 3, 400L, 500L, "", false, ""),
+            // Exam 1 has two contiguous slots with the exact same title "Maths"
+            Session("e1a", "Maths", EXAM_TYPE_ID, 500L, 550L, "", false, ""),
+            Session("e1b", "Maths", EXAM_TYPE_ID, 550L, 600L, "", false, ""),
+
+            // Period 2 sessions between Exam 1 (500) and Exam 2 (1000)
+            Session("m5", "Maths", 3, 600L, 700L, "", false, ""),
+            Session("m6", "Maths", 3, 700L, 800L, "", false, ""),
+            Session("m7", "Maths", 3, 800L, 900L, "", false, ""),
+            Session("m8", "Maths", 3, 900L, 1000L, "", false, ""),
+            // Exam 2 has the exact same title "Maths" at a later date (t = 1000)
+            Session("e2", "Maths", EXAM_TYPE_ID, 1000L, 1100L, "", false, ""),
+        )
+
+        val att = mapOf(
+            "m1" to Status.ABSENT, // 1 absence in Period 1
+        )
+
+        val encodedExams = listOf("Maths@500", "Maths@1000")
+
+        // Before Exam 1 (now = 250L, after m1 ends at 200L and before m2 ends at 300L)
+        val statsBeforeE1 = Stats.compute(
+            sessions = sessions,
+            att = att,
+            prefs = emptyMap(),
+            examMappings = emptyMap(),
+            availableExams = encodedExams,
+            now = 250L,
+            pct = 60,
+            typeLabel = { "CM" },
+        )
+
+        assertEquals(1, statsBeforeE1.size)
+        val s1 = statsBeforeE1.first()
+
+        // Both exams with the same title are detected and indexed
+        assertEquals(2, s1.associatedExams.size)
+        val exam1 = s1.associatedExams[0]
+        val exam2 = s1.associatedExams[1]
+        assertEquals("Maths 1", exam1.indexedLabel)
+        assertEquals(500L, exam1.start)
+        assertEquals("Maths 2", exam2.indexedLabel)
+        assertEquals(1000L, exam2.start)
+
+        // targetExam equals exam1 (including isNext == true)
+        assertEquals(exam1, s1.targetExam)
+
+        // Per-exam period stats are precomputed for both Exam 1 and Exam 2
+        val s1ForExam1 = s1.forExam(exam1)
+        assertEquals(4, s1ForExam1.total)
+        assertEquals(1, s1ForExam1.allowed)
+        assertEquals(1, s1ForExam1.absent)
+        assertEquals(0, s1ForExam1.margin)
+
+        val s1ForExam2 = s1.forExam(exam2)
+        assertEquals(8, s1ForExam2.total)
+        assertEquals(3, s1ForExam2.allowed)
+        assertEquals(1, s1ForExam2.absent)
+        assertEquals(2, s1ForExam2.margin)
+
+        val totalForExam2 = Stats.totalStats(statsBeforeE1.map { it.forExam(exam2) }, 60)
+        assertEquals(8, totalForExam2.total)
+        assertEquals(3, totalForExam2.allowed)
+        assertEquals(2, totalForExam2.margin)
+
+        // Check Stats.forDay:
+        val statsMap = statsBeforeE1.associateBy { it.key }
+        val settings = AppSettings(reserve = 0, morningCutoffHour = 24)
+        // In Period 1 (day with m2 at t=200..300L), margin for Exam 1 is 0 -> MUST_ATTEND
+        val day1Plan = Stats.forDay(
+            todays = listOf(sessions[1]), // m2 at 200..300L
+            att = att,
+            stats = statsMap,
+            s = settings,
+            now = 250L,
+        )
+        assertEquals(Badge.MUST_ATTEND, day1Plan.first().badge)
+
+        // In Period 2 (day with m6 at t=700..800L, after Exam 1 at 500L), Stats.forDay uses Exam 2's budget (margin = 2 -> SKIP_SUGGESTED!)
+        val day2Plan = Stats.forDay(
+            todays = listOf(sessions[7]), // m6 at 700..800L
+            att = att,
+            stats = statsMap,
+            s = settings,
+            now = 250L,
+        )
+        assertEquals(Badge.SKIP_SUGGESTED, day2Plan.first().badge)
+
+        // After Exam 1 passes (now = 650L), targetExam transitions to Maths 2 automatically
+        val statsAfterE1 = Stats.compute(
+            sessions = sessions,
+            att = att,
+            prefs = emptyMap(),
+            examMappings = emptyMap(),
+            availableExams = encodedExams,
+            now = 650L,
+            pct = 60,
+            typeLabel = { "CM" },
+        )
+        val sAfterE1 = statsAfterE1.first()
+        assertEquals("Maths 2", sAfterE1.targetExam?.indexedLabel)
+        assertEquals(sAfterE1.associatedExams[1], sAfterE1.targetExam)
+        assertEquals(8, sAfterE1.total)
+        assertEquals(3, sAfterE1.allowed)
+        assertEquals(1, sAfterE1.absent)
+        assertEquals(2, sAfterE1.margin)
+    }
 }

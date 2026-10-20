@@ -12,13 +12,45 @@ object ExamMatch {
     const val NONE_MAPPING = "__NONE__"
 
     private val NON_ALPHANUM_REGEX = Regex("[^a-z0-9]+")
+    private val NON_ALPHA_REGEX = Regex("[^a-z]+")
+    private val ROMAN_INDEX_REGEX = Regex("\\b(?:i|ii|iii|iv|v)\\b", RegexOption.IGNORE_CASE)
+    private val EXAM_KEY_SUFFIX_REGEX = Regex("@(-?\\d+)$")
+
+    private val EXAM_PREFIX_REGEX = Regex(
+        "^(?:\\[?(?:exam|examen|partiel|ds|evaluation|midterm|rattrapage|qcm|cc|controle)\\b\\]?)[^a-z0-9]*",
+        RegexOption.IGNORE_CASE
+    )
+    private val EXAM_ANYWHERE_REGEX = Regex(
+        "\\b(?:exam|examen|partiel|ds|evaluation|midterm|final|rattrapage|qcm|cc|controle|continu)\\b",
+        RegexOption.IGNORE_CASE
+    )
+
+    fun encodeExamKey(title: String, start: Long): String = "$title@$start"
+
+    fun parseExamKey(key: String): Pair<String, Long?> {
+        val match = EXAM_KEY_SUFFIX_REGEX.find(key) ?: return key to null
+        val start = match.groupValues[1].toLongOrNull() ?: return key to null
+        val title = key.substring(0, match.range.first)
+        return title to start
+    }
+
+    fun displayExamKey(key: String, examStarts: Map<String, List<Long>> = emptyMap()): String {
+        val (title, explicitStart) = parseExamKey(key)
+        val start = explicitStart ?: examStarts[title]?.singleOrNull()
+        return if (start != null && start != Long.MAX_VALUE && start > 86_400_000L) {
+            "$title (${fmtDate(start)})"
+        } else {
+            title
+        }
+    }
 
     private fun squash(s: String): String = Repo.plain(s).replace(NON_ALPHANUM_REGEX, "")
 
-    private val EXAM_PREFIX_REGEX = Regex("^(?:\\[?(?:exam|examen|partiel|ds|evaluation)\\b\\]?)[^a-z0-9]*", RegexOption.IGNORE_CASE)
+    private fun coreAlpha(s: String): String =
+        Repo.plain(s).replace(ROMAN_INDEX_REGEX, " ").replace(NON_ALPHA_REGEX, "")
 
     fun isExamTitle(subject: String): Boolean {
-        val p = Repo.plain(subject)
+        val p = Repo.plain(parseExamKey(subject).first)
         return p.startsWith("exam") || EXAM_PREFIX_REGEX.containsMatchIn(p)
     }
 
@@ -36,21 +68,38 @@ object ExamMatch {
     }
 
     private fun remainder(examSubject: String): String {
-        val p = Repo.plain(examSubject)
-        return p.replace(EXAM_PREFIX_REGEX, "").trim()
+        val p = Repo.plain(parseExamKey(examSubject).first)
+        return p.replace(EXAM_PREFIX_REGEX, "")
+            .replace(EXAM_ANYWHERE_REGEX, " ")
+            .trim()
     }
 
     fun matches(examSubject: String, courseSubject: String): Boolean {
-        val a = squash(remainder(examSubject))
+        val rem = remainder(examSubject)
+        val a = squash(rem)
         val b = squash(courseSubject)
         if (a.isEmpty() || b.isEmpty()) return false
-        return a.contains(b) || b.contains(a)
+        if (a.contains(b) || b.contains(a)) return true
+
+        val aAlpha = coreAlpha(rem)
+        val bAlpha = coreAlpha(courseSubject)
+        if (aAlpha.length >= 2 && bAlpha.length >= 2) {
+            if (aAlpha.contains(bAlpha) || bAlpha.contains(aAlpha)) return true
+            val aStem = if (aAlpha.length >= 4 && aAlpha.endsWith("s")) aAlpha.dropLast(1) else aAlpha
+            val bStem = if (bAlpha.length >= 4 && bAlpha.endsWith("s")) bAlpha.dropLast(1) else bAlpha
+            if (aStem.length >= 3 && bStem.length >= 3 && (aStem.contains(bStem) || bStem.contains(aStem))) {
+                return true
+            }
+        }
+        return false
     }
 
     /** Finds all auto-detected exam subjects for a given course subject among available exam subjects. */
     fun findAllAutoMatches(courseSubject: String, availableExams: List<String>): List<String> {
-        val exact = availableExams.filter { it.equals(courseSubject, ignoreCase = true) }
-        val fuzzy = availableExams.filter { !it.equals(courseSubject, ignoreCase = true) && matches(it, courseSubject) }
+        val exact = availableExams.filter { parseExamKey(it).first.equals(courseSubject, ignoreCase = true) }
+        val fuzzy = availableExams.filter {
+            !parseExamKey(it).first.equals(courseSubject, ignoreCase = true) && matches(it, courseSubject)
+        }
         return (exact + fuzzy).distinct()
     }
 
