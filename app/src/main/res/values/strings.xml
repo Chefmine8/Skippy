@@ -142,4 +142,13 @@
     <string name="exams_completed">All exams completed (term end)</string>
     <string name="save_exam_mapping">Save</string>
     <string name="target_exam_line">Next exam: %1$s</string>
+    <string name="set_merge_exams">Merge subjects sharing the same exam</string>
+    <string name="set_merge_exams_hint">Automatically groups subjects that share the same exam into a single entry</string>
+    <string name="search_exams">Search exam…</string>
+    <string name="manual_merges_title">Manual subject merges</string>
+    <string name="manual_merges_hint">Combine multiple course subjects together</string>
+    <string name="merge_with_subject">Merge with another subject</string>
+    <string name="unmerge_subject">Unmerge</string>
+    <string name="merge_subject_dialog_title">Merge \"%1$s\" with…</string>
+    <string name="none_or_unmerged">None (keep separate)</string>
 </resources>

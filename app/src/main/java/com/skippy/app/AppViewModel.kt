@@ -24,6 +24,7 @@ data class UiState(
     val hiddenSubjects: Set<String>,
     val examMappings: Map<String, List<String>>,
     val availableExams: List<String>,
+    val subjectMerges: Map<String, String> = emptyMap(),
     val now: Long,
     val syncing: Boolean,
     val progress: Pair<Int, Int>?,
@@ -63,8 +64,13 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val examMappings = repo.examMappings()
         val availableExams = repo.availableExams()
         val allRaw = repo.allRawSessions()
-        val mergeMap = Stats.resolveSubjectMerges(sessions, examMappings, availableExams, names)
-        val mergedAllRaw = allRaw.map {
+        val manualMerges = repo.subjectMerges()
+        val mergeMap = if (s.mergeSubjectsByExam) {
+            Stats.resolveSubjectMerges(sessions, examMappings, availableExams, names) + manualMerges
+        } else {
+            manualMerges
+        }
+        val mergedAllRaw = if (mergeMap.isEmpty()) allRaw else allRaw.map {
             val m = mergeMap[it.subject] ?: it.subject
             if (m != it.subject) it.copy(subject = m, originalSubject = it.subject) else it
         }
@@ -76,7 +82,20 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         var cachedSchedules: Map<java.time.LocalDate, List<TodayItem>>? = null
 
         if (full) {
-            stats = Stats.compute(sessions, att, repo.prefs(), examMappings, availableExams, now, s.requiredPct, names) { typeName(names, it) }
+            stats = Stats.compute(
+                sessions = sessions,
+                att = att,
+                prefs = repo.prefs(),
+                examMappings = examMappings,
+                availableExams = availableExams,
+                now = now,
+                pct = s.requiredPct,
+                typeNames = names,
+                typeLabel = { typeName(names, it) },
+                mergeSubjectsByExam = s.mergeSubjectsByExam,
+                manualMerges = manualMerges,
+                allSessionsForCutoffs = allRaw,
+            )
             val statsMap = stats.associateBy { it.key }
 
             val sched = mutableMapOf<java.time.LocalDate, List<TodayItem>>()
@@ -113,6 +132,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
             hiddenSubjects = repo.hiddenSubjects(),
             examMappings = examMappings,
             availableExams = availableExams,
+            subjectMerges = manualMerges,
             now = now,
             syncing = syncing,
             progress = progress,
@@ -189,6 +209,11 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun setSubjectHidden(subject: String, hidden: Boolean) {
         repo.setSubjectHidden(subject, hidden)
+        reload()
+    }
+
+    fun setSubjectMerge(subject: String, target: String?) {
+        repo.setSubjectMerge(subject, target)
         reload()
     }
 

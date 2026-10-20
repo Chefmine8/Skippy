@@ -95,7 +95,8 @@ class StatsTest {
             "Structures de données" to listOf("EXAM INFO"),
         )
 
-        val stats = Stats.compute(
+        // Case 1: Default behavior (mergeSubjectsByExam = false) -> subjects remain separate!
+        val statsUnmerged = Stats.compute(
             sessions = sessions,
             att = emptyMap(),
             prefs = emptyMap(),
@@ -103,15 +104,47 @@ class StatsTest {
             availableExams = listOf("EXAM INFO"),
             now = 50L,
             pct = 60,
+            mergeSubjectsByExam = false,
             typeLabel = { "CM" },
         )
+        assertEquals(2, statsUnmerged.size)
+        assertEquals("Algorithmique", statsUnmerged[0].subject)
+        assertEquals("Structures de données", statsUnmerged[1].subject)
 
-        // The two subjects must be merged into one single subject entry
-        assertEquals(1, stats.size)
-        val merged = stats.first()
+        // Case 2: Opt-in exam merge (mergeSubjectsByExam = true) -> merged into one single entry
+        val statsMerged = Stats.compute(
+            sessions = sessions,
+            att = emptyMap(),
+            prefs = emptyMap(),
+            examMappings = mappings,
+            availableExams = listOf("EXAM INFO"),
+            now = 50L,
+            pct = 60,
+            mergeSubjectsByExam = true,
+            typeLabel = { "CM" },
+        )
+        assertEquals(1, statsMerged.size)
+        val merged = statsMerged.first()
         assertEquals("INFO", merged.subject)
         assertEquals(4, merged.total) // 2 + 2 sessions merged
         assertEquals(1, merged.allowed) // floor(4 * 0.4) = 1
+
+        // Case 3: Manual subject merge mapping
+        val statsManual = Stats.compute(
+            sessions = sessions,
+            att = emptyMap(),
+            prefs = emptyMap(),
+            examMappings = emptyMap(),
+            availableExams = listOf("EXAM INFO"),
+            now = 50L,
+            pct = 60,
+            mergeSubjectsByExam = false,
+            manualMerges = mapOf("Structures de données" to "Algorithmique"),
+            typeLabel = { "CM" },
+        )
+        assertEquals(1, statsManual.size)
+        assertEquals("Algorithmique", statsManual.first().subject)
+        assertEquals(4, statsManual.first().total)
     }
 
     @Test

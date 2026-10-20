@@ -136,13 +136,20 @@ object Stats {
         pct: Int,
         typeNames: Map<Int, String> = emptyMap(),
         typeLabel: (Int) -> String,
+        mergeSubjectsByExam: Boolean = false,
+        manualMerges: Map<String, String> = emptyMap(),
+        allSessionsForCutoffs: List<Session> = sessions,
     ): List<SubjectStats> {
         val normalizedMappings = examMappings
-        val examStartTimes = examCutoffs(sessions, typeNames)
-        val mergeMap = resolveSubjectMerges(sessions, normalizedMappings, availableExams, typeNames)
+        val examStartTimes = examCutoffs(allSessionsForCutoffs, typeNames)
+        val mergeMap = if (mergeSubjectsByExam) {
+            resolveSubjectMerges(sessions, normalizedMappings, availableExams, typeNames) + manualMerges
+        } else {
+            manualMerges
+        }
 
         val (_, rawCourseSessions) = sessions.partition { ExamMatch.isExamSession(it, typeNames) }
-        val courseSessions = rawCourseSessions.map { s ->
+        val courseSessions = if (mergeMap.isEmpty()) rawCourseSessions else rawCourseSessions.map { s ->
             val merged = mergeMap[s.subject] ?: s.subject
             if (merged != s.subject) s.copy(subject = merged, originalSubject = s.subject) else s
         }
@@ -158,9 +165,9 @@ object Stats {
                 ExamMatch.resolveExams(it, normalizedMappings, availableExams).second
             }
 
-            val examList = resolvedExams.mapNotNull { title ->
-                val start = examStartTimes[title]
-                if (start != null) title to start else null
+            val examList = resolvedExams.map { title ->
+                val start = examStartTimes[title] ?: Long.MAX_VALUE
+                title to start
             }.sortedBy { it.second }
 
             val examInfos = examList.mapIndexed { idx, (title, start) ->
@@ -173,12 +180,13 @@ object Stats {
                 )
             }
 
-            val targetExam = examInfos.firstOrNull { it.start > now }
-            val allExamsPassed = examInfos.isNotEmpty() && targetExam == null
+            val targetExam = examInfos.firstOrNull { it.start > now && it.start != Long.MAX_VALUE }
+                ?: examInfos.firstOrNull { it.start == Long.MAX_VALUE }
+            val allExamsPassed = examInfos.isNotEmpty() && examInfos.all { it.start <= now && it.start != Long.MAX_VALUE }
             val finalExamInfos = examInfos.map { it.copy(isNext = it == targetExam) }
-            val examFound = examInfos.isNotEmpty() || (isManual && resolvedExams.isEmpty())
+            val examFound = examInfos.any { it.start != Long.MAX_VALUE } || (isManual && resolvedExams.isEmpty())
 
-            val cutoff = targetExam?.start
+            val cutoff = targetExam?.takeIf { it.start != Long.MAX_VALUE }?.start
             val withinTerm = if (cutoff != null) subjectSessions.filter { it.start < cutoff } else subjectSessions
 
             withinTerm.groupBy { it.typeId }.values.map { list ->

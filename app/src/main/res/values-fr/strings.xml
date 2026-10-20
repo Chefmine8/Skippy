@@ -142,4 +142,13 @@
     <string name="exams_completed">Tous les examens sont passés (fin de semestre)</string>
     <string name="save_exam_mapping">Enregistrer</string>
     <string name="target_exam_line">Prochain examen : %1$s</string>
+    <string name="set_merge_exams">Fusionner les matières associées au même examen</string>
+    <string name="set_merge_exams_hint">Regroupe automatiquement les matières qui partagent les mêmes examens</string>
+    <string name="search_exams">Rechercher un examen…</string>
+    <string name="manual_merges_title">Fusion manuelle de matières</string>
+    <string name="manual_merges_hint">Regrouper manuellement plusieurs matières ensemble</string>
+    <string name="merge_with_subject">Fusionner avec une autre matière</string>
+    <string name="unmerge_subject">Dissocier</string>
+    <string name="merge_subject_dialog_title">Fusionner \"%1$s\" avec…</string>
+    <string name="none_or_unmerged">Aucune (laisser séparée)</string>
 </resources>

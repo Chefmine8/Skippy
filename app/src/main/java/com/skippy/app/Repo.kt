@@ -79,6 +79,7 @@ class Repo private constructor(ctx: Context) {
             authMode = sp.getString("auth", "") ?: "",
             morningCutoffHour = sp.getInt("morningCutoff", d.morningCutoffHour),
             exceptionThresholdPct = sp.getInt("exceptionPct", d.exceptionThresholdPct),
+            mergeSubjectsByExam = sp.getBoolean("mergeSubjectsByExam", d.mergeSubjectsByExam),
         )
     }
 
@@ -95,6 +96,7 @@ class Repo private constructor(ctx: Context) {
             .putString("excluded", s.excluded)
             .putInt("morningCutoff", s.morningCutoffHour)
             .putInt("exceptionPct", s.exceptionThresholdPct)
+            .putBoolean("mergeSubjectsByExam", s.mergeSubjectsByExam)
         if (runCatching { LocalDate.parse(s.rentree.trim()) }.isSuccess) e.putString("rentree", s.rentree.trim())
         e.apply()
     }
@@ -153,11 +155,39 @@ class Repo private constructor(ctx: Context) {
         setExamMappings(subject, list)
     }
 
+    // ---- manual subject merges --------------------------------------------------------------
+
+    private var cachedSubjectMerges: Map<String, String>? = null
+    fun subjectMerges(): Map<String, String> {
+        cachedSubjectMerges?.let { return it }
+        val o = JSONObject(sp.getString("subjectMerges", "{}"))
+        val map = HashMap<String, String>()
+        for (k in o.keys()) {
+            val v = o.optString(k, "")
+            if (v.isNotBlank()) map[k] = v
+        }
+        return map.also { cachedSubjectMerges = it }
+    }
+
+    fun setSubjectMerge(subject: String, target: String?) {
+        val o = JSONObject(sp.getString("subjectMerges", "{}"))
+        if (target.isNullOrBlank() || target == subject) {
+            o.remove(subject)
+        } else {
+            o.put(subject, target)
+        }
+        sp.edit().putString("subjectMerges", o.toString()).apply()
+        cachedSubjectMerges = null
+    }
+
     fun availableExams(): List<String> {
         val types = typeNames()
-        return rawSessions()
+        val mappedExams = examMappings().values.flatten().filter {
+            it != ExamMatch.AUTO_MAPPING && it != ExamMatch.NONE_MAPPING
+        }
+        return (rawSessions()
             .filter { ExamMatch.isExamSession(it, types) }
-            .map { it.subject }
+            .map { it.subject } + mappedExams)
             .distinct()
             .sortedWith(compareBy { it.lowercase() })
     }

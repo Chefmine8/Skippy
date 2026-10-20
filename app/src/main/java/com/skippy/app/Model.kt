@@ -96,6 +96,8 @@ data class AppSettings(
     /** % of a subject's remaining sessions (before its exam) that must still be spare margin
      *  to override the morning/afternoon rules and suggest skipping almost anything. */
     val exceptionThresholdPct: Int = 80,
+    /** When true, automatically groups subjects that share an exam into a single entry. Default false (manual). */
+    val mergeSubjectsByExam: Boolean = false,
 )
 
 /** Zeus idType -> default label, from the school's own table. Editable per user in Settings. */
