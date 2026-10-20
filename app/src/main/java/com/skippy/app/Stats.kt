@@ -26,6 +26,9 @@ data class SubjectStats(
     val pref: Int,         // per subject: 0 important, 1 normal, 2 skip first
     val mappedExamTitle: String? = null,
     val isExamManual: Boolean = false,
+    val associatedExams: List<SubjectExamInfo> = emptyList(),
+    val targetExam: SubjectExamInfo? = null,
+    val allExamsPassed: Boolean = false,
 ) {
     val key: String get() = Stats.key(subject, typeId)
     val title: String get() = "$subject · $typeLabel"
@@ -47,6 +50,76 @@ object Stats {
             .groupBy { it.subject }
             .mapValues { (_, list) -> list.minOf { it.start } }
 
+    /** Builds subject merges when two or more subjects share an exam. */
+    fun resolveSubjectMerges(
+        sessions: List<Session>,
+        examMappings: Map<String, List<String>>,
+        availableExams: List<String>,
+        typeNames: Map<Int, String> = emptyMap(),
+    ): Map<String, String> {
+        val courseSubjects = sessions.filter { !ExamMatch.isExamSession(it, typeNames) }
+            .map { it.subject }
+            .distinct()
+
+        val subjectExams = courseSubjects.associateWith { subj ->
+            ExamMatch.resolveExams(subj, examMappings, availableExams).first
+        }
+
+        val parent = mutableMapOf<String, String>()
+        fun find(s: String): String {
+            val p = parent.getOrPut(s) { s }
+            if (p == s) return s
+            val root = find(p)
+            parent[s] = root
+            return root
+        }
+        fun union(a: String, b: String) {
+            val rootA = find(a)
+            val rootB = find(b)
+            if (rootA != rootB) parent[rootA] = rootB
+        }
+
+        val examToSubjects = mutableMapOf<String, MutableList<String>>()
+        for ((subj, exams) in subjectExams) {
+            for (exam in exams) {
+                if (exam.isNotBlank()) {
+                    examToSubjects.getOrPut(exam) { mutableListOf() }.add(subj)
+                }
+            }
+        }
+
+        for (subjs in examToSubjects.values) {
+            val first = subjs.first()
+            for (i in 1 until subjs.size) {
+                union(first, subjs[i])
+            }
+        }
+
+        val components = mutableMapOf<String, MutableList<String>>()
+        for (subj in courseSubjects) {
+            components.getOrPut(find(subj)) { mutableListOf() }.add(subj)
+        }
+
+        val result = mutableMapOf<String, String>()
+        for ((_, group) in components) {
+            if (group.size == 1) {
+                result[group.first()] = group.first()
+            } else {
+                val groupExams = group.flatMap { subjectExams[it].orEmpty() }.distinct()
+                val commonExam = groupExams.firstOrNull()?.replace(Regex("(?i)^exam\\s*"), "")?.trim()
+                val mergedName = if (!commonExam.isNullOrBlank() && (group.any { it.contains(commonExam, ignoreCase = true) } || commonExam.length > 2)) {
+                    commonExam
+                } else {
+                    group.sorted().joinToString(" / ")
+                }
+                for (s in group) {
+                    result[s] = mergedName
+                }
+            }
+        }
+        return result
+    }
+
     /**
      * Whole-term stats for every (subject, type) pair.
      * Required attendance is [pct]% over [total] sessions, so the absence budget is
@@ -57,43 +130,120 @@ object Stats {
         sessions: List<Session>,
         att: Map<String, Status>,
         prefs: Map<String, Int>,
-        examMappings: Map<String, String>,
+        examMappings: Map<String, List<String>>,
         availableExams: List<String>,
         now: Long,
         pct: Int,
         typeNames: Map<Int, String> = emptyMap(),
         typeLabel: (Int) -> String,
     ): List<SubjectStats> {
+        val normalizedMappings = examMappings
         val examStartTimes = examCutoffs(sessions, typeNames)
-        return sessions.groupBy { key(it) }.values.map { list ->
-            val first = list.first()
-            val (resolvedExamTitle, isManual) = ExamMatch.resolveExam(first.subject, examMappings, availableExams)
-            val examCutoff = resolvedExamTitle?.let { examStartTimes[it] }
-            val examFound = examCutoff != null || (isManual && resolvedExamTitle == null)
-            val withinTerm = if (examCutoff != null) list.filter { it.start < examCutoff } else list
+        val mergeMap = resolveSubjectMerges(sessions, normalizedMappings, availableExams, typeNames)
 
-            var p = 0
-            var a = 0
-            var pend = 0
-            var up = 0
-            for (s in withinTerm) {
-                if (s.end <= now) {
-                    when (att[s.uid]) {
-                        null -> pend++
-                        Status.ABSENT -> a++
-                        else -> p++
-                    }
-                } else up++
+        val (_, rawCourseSessions) = sessions.partition { ExamMatch.isExamSession(it, typeNames) }
+        val courseSessions = rawCourseSessions.map { s ->
+            val merged = mergeMap[s.subject] ?: s.subject
+            if (merged != s.subject) s.copy(subject = merged, originalSubject = s.subject) else s
+        }
+
+        val courseBySubject = courseSessions.groupBy { it.subject }
+
+        return courseBySubject.flatMap { (subject, subjectSessions) ->
+            val originalSubjs = mergeMap.filterValues { it == subject }.keys.ifEmpty { setOf(subject) }
+            val resolvedExams = originalSubjs.flatMap {
+                ExamMatch.resolveExams(it, normalizedMappings, availableExams).first
+            }.distinct()
+            val isManual = originalSubjs.any {
+                ExamMatch.resolveExams(it, normalizedMappings, availableExams).second
             }
-            val total = withinTerm.size
-            val allowed = total * (100 - pct) / 100
-            SubjectStats(
-                first.subject, first.typeId, typeLabel(first.typeId),
-                p, a, pend, up, total, allowed, allowed - a, examFound, prefs[first.subject] ?: 1,
-                mappedExamTitle = resolvedExamTitle,
-                isExamManual = isManual,
-            )
+
+            val examList = resolvedExams.mapNotNull { title ->
+                val start = examStartTimes[title]
+                if (start != null) title to start else null
+            }.sortedBy { it.second }
+
+            val examInfos = examList.mapIndexed { idx, (title, start) ->
+                val indexedLabel = if (examList.size > 1) "$subject ${idx + 1}" else title
+                SubjectExamInfo(
+                    originalTitle = title,
+                    indexedLabel = indexedLabel,
+                    start = start,
+                    isNext = false,
+                )
+            }
+
+            val targetExam = examInfos.firstOrNull { it.start > now }
+            val allExamsPassed = examInfos.isNotEmpty() && targetExam == null
+            val finalExamInfos = examInfos.map { it.copy(isNext = it == targetExam) }
+            val examFound = examInfos.isNotEmpty() || (isManual && resolvedExams.isEmpty())
+
+            val cutoff = targetExam?.start
+            val withinTerm = if (cutoff != null) subjectSessions.filter { it.start < cutoff } else subjectSessions
+
+            withinTerm.groupBy { it.typeId }.values.map { list ->
+                val first = list.first()
+                var p = 0
+                var a = 0
+                var pend = 0
+                var up = 0
+                for (s in list) {
+                    if (s.end <= now) {
+                        when (att[s.uid]) {
+                            null -> pend++
+                            Status.ABSENT -> a++
+                            else -> p++
+                        }
+                    } else up++
+                }
+                val total = list.size
+                val allowed = total * (100 - pct) / 100
+                SubjectStats(
+                    subject = subject,
+                    typeId = first.typeId,
+                    typeLabel = typeLabel(first.typeId),
+                    present = p,
+                    absent = a,
+                    pending = pend,
+                    upcoming = up,
+                    total = total,
+                    allowed = allowed,
+                    margin = allowed - a,
+                    examFound = examFound,
+                    pref = prefs[subject] ?: originalSubjs.mapNotNull { prefs[it] }.firstOrNull() ?: 1,
+                    mappedExamTitle = targetExam?.indexedLabel ?: finalExamInfos.firstOrNull()?.indexedLabel,
+                    isExamManual = isManual,
+                    associatedExams = finalExamInfos,
+                    targetExam = targetExam,
+                    allExamsPassed = allExamsPassed,
+                )
+            }
         }.sortedWith(compareBy({ it.subject.lowercase() }, { it.typeId }))
+    }
+
+    /** Aggregates all activity types for a subject into overall stats. */
+    fun totalStats(rows: List<SubjectStats>, pct: Int): TotalSubjectStats {
+        val first = rows.first()
+        val total = rows.sumOf { it.total }
+        val present = rows.sumOf { it.present }
+        val absent = rows.sumOf { it.absent }
+        val pending = rows.sumOf { it.pending }
+        val upcoming = rows.sumOf { it.upcoming }
+        val allowed = total * (100 - pct) / 100
+        return TotalSubjectStats(
+            subject = first.subject,
+            present = present,
+            absent = absent,
+            pending = pending,
+            upcoming = upcoming,
+            total = total,
+            allowed = allowed,
+            margin = allowed - absent,
+            examFound = first.examFound,
+            associatedExams = first.associatedExams,
+            targetExam = first.targetExam,
+            allExamsPassed = first.allExamsPassed,
+        )
     }
 
     /** Pairs where the user already skipped at least once and is close to (or over) the budget. */

@@ -22,7 +22,7 @@ data class UiState(
     val allSubjects: List<String>,
     val excludedSubjects: Set<String>,
     val hiddenSubjects: Set<String>,
-    val examMappings: Map<String, String>,
+    val examMappings: Map<String, List<String>>,
     val availableExams: List<String>,
     val now: Long,
     val syncing: Boolean,
@@ -63,8 +63,13 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         val examMappings = repo.examMappings()
         val availableExams = repo.availableExams()
         val allRaw = repo.allRawSessions()
+        val mergeMap = Stats.resolveSubjectMerges(sessions, examMappings, availableExams, names)
+        val mergedAllRaw = allRaw.map {
+            val m = mergeMap[it.subject] ?: it.subject
+            if (m != it.subject) it.copy(subject = m, originalSubject = it.subject) else it
+        }
         val zone = java.time.ZoneId.systemDefault()
-        val byDay = allRaw.sortedBy { it.start }
+        val byDay = mergedAllRaw.sortedBy { it.start }
             .groupBy { java.time.Instant.ofEpochMilli(it.start).atZone(zone).toLocalDate() }
 
         var stats = emptyList<SubjectStats>()
@@ -159,6 +164,11 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun setPref(subject: String, pref: Int) {
         repo.setPref(subject, pref)
+        reload()
+    }
+
+    fun setExamMappings(subject: String, examSubjects: List<String>) {
+        repo.setExamMappings(subject, examSubjects)
         reload()
     }
 

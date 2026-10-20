@@ -40,10 +40,31 @@ object ExamMatch {
         return a.contains(b) || b.contains(a)
     }
 
+    /** Finds all auto-detected exam subjects for a given course subject among available exam subjects. */
+    fun findAllAutoMatches(courseSubject: String, availableExams: List<String>): List<String> {
+        val exact = availableExams.filter { it.equals(courseSubject, ignoreCase = true) }
+        val fuzzy = availableExams.filter { !it.equals(courseSubject, ignoreCase = true) && matches(it, courseSubject) }
+        return (exact + fuzzy).distinct()
+    }
+
     /** Finds the auto-detected exam subject for a given course subject among available exam subjects. */
     fun findAutoMatch(courseSubject: String, availableExams: List<String>): String? =
-        availableExams.firstOrNull { it.equals(courseSubject, ignoreCase = true) }
-            ?: availableExams.firstOrNull { matches(it, courseSubject) }
+        findAllAutoMatches(courseSubject, availableExams).firstOrNull()
+
+    /** Resolves the exam titles for a course subject and returns Pair(resolvedExamTitles, isManual). */
+    fun resolveExams(
+        courseSubject: String,
+        mappings: Map<String, List<String>>,
+        availableExams: List<String>,
+    ): Pair<List<String>, Boolean> {
+        val mapping = mappings[courseSubject]
+        return when {
+            mapping == null -> findAllAutoMatches(courseSubject, availableExams) to false
+            mapping.contains(NONE_MAPPING) -> emptyList<String>() to true
+            mapping.contains(AUTO_MAPPING) -> findAllAutoMatches(courseSubject, availableExams) to false
+            else -> mapping to true
+        }
+    }
 
     /** Resolves the exam title for a course subject and returns Pair(resolvedExamTitle, isManual). */
     fun resolveExam(
@@ -51,11 +72,8 @@ object ExamMatch {
         mappings: Map<String, String>,
         availableExams: List<String>,
     ): Pair<String?, Boolean> {
-        val mapping = mappings[courseSubject]
-        return when {
-            mapping == NONE_MAPPING -> null to true
-            (mapping != null) && (mapping != AUTO_MAPPING) -> mapping to true
-            else -> findAutoMatch(courseSubject, availableExams) to false
-        }
+        val listMappings = mappings.mapValues { (_, v) -> listOf(v) }
+        val (exams, isManual) = resolveExams(courseSubject, listMappings, availableExams)
+        return exams.firstOrNull() to isManual
     }
 }

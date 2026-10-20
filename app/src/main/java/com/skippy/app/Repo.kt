@@ -118,24 +118,39 @@ class Repo private constructor(ctx: Context) {
 
     // ---- exam boundaries --------------------------------------------------------------------
 
-    private var cachedExamMappings: Map<String, String>? = null
-    fun examMappings(): Map<String, String> {
+    private var cachedExamMappings: Map<String, List<String>>? = null
+    fun examMappings(): Map<String, List<String>> {
         cachedExamMappings?.let { return it }
         val o = JSONObject(sp.getString("examMappings", "{}"))
-        val map = HashMap<String, String>()
-        for (k in o.keys()) map[k] = o.getString(k)
+        val map = HashMap<String, List<String>>()
+        for (k in o.keys()) {
+            val arr = o.optJSONArray(k)
+            if (arr != null) {
+                map[k] = (0 until arr.length()).map { arr.getString(it) }
+            } else {
+                val str = o.optString(k, "")
+                if (str.isNotBlank()) map[k] = listOf(str)
+            }
+        }
         return map.also { cachedExamMappings = it }
     }
 
-    fun setExamMapping(subject: String, examSubject: String) {
+    fun setExamMappings(subject: String, examSubjects: List<String>) {
         val o = JSONObject(sp.getString("examMappings", "{}"))
-        if (examSubject == ExamMatch.AUTO_MAPPING) {
+        if (examSubjects.isEmpty() || examSubjects == listOf(ExamMatch.AUTO_MAPPING)) {
             o.remove(subject)
         } else {
-            o.put(subject, examSubject)
+            val arr = JSONArray()
+            examSubjects.forEach { arr.put(it) }
+            o.put(subject, arr)
         }
         sp.edit().putString("examMappings", o.toString()).apply()
         cachedExamMappings = null
+    }
+
+    fun setExamMapping(subject: String, examSubject: String) {
+        val list = if (examSubject == ExamMatch.AUTO_MAPPING) emptyList() else listOf(examSubject)
+        setExamMappings(subject, list)
     }
 
     fun availableExams(): List<String> {

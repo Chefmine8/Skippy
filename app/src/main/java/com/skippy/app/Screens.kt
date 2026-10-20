@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -41,7 +42,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -613,7 +617,8 @@ fun SubjectsScreen(ui: UiState, vm: AppViewModel) {
                 onPref = { vm.setPref(subject, it) },
                 onExclude = { vm.setSubjectExcluded(subject, true) },
                 onHide = { vm.setSubjectHidden(subject, true) },
-                onExamMappingChanged = { vm.setExamMapping(subject, it) },
+                onExamMappingChanged = { vm.setExamMappings(subject, it) },
+                requiredPct = ui.settings.requiredPct,
             )
         }
     }
@@ -627,12 +632,15 @@ fun SubjectCard(
     onPref: (Int) -> Unit,
     onExclude: () -> Unit,
     onHide: () -> Unit,
-    onExamMappingChanged: (String) -> Unit,
+    onExamMappingChanged: (List<String>) -> Unit,
+    requiredPct: Int,
 ) {
     var showDialog by remember { mutableStateOf(false) }
     val first = rows.first()
-    val mappedTitle = first.mappedExamTitle
     val isManual = first.isExamManual
+    val associatedExams = first.associatedExams
+    val targetExam = first.targetExam
+    val totalSt = remember(rows, requiredPct) { Stats.totalStats(rows, requiredPct) }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -651,6 +659,94 @@ fun SubjectCard(
                     Text(stringResource(R.string.hide_subject), style = MaterialTheme.typography.labelSmall)
                 }
             }
+
+            // Associated exams display with indexing and target highlight
+            if (associatedExams.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    ) {
+                        associatedExams.forEach { ex ->
+                            val isTarget = ex == targetExam
+                            SuggestionChip(
+                                onClick = {},
+                                label = {
+                                    Text(
+                                        "${ex.indexedLabel} (${fmtDate(ex.start)})",
+                                        fontWeight = if (isTarget) FontWeight.Bold else FontWeight.Normal,
+                                    )
+                                },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = if (isTarget) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = if (isTarget) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                            )
+                        }
+                    }
+                    if (first.allExamsPassed) {
+                        Text(
+                            stringResource(R.string.exams_completed),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Green,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    } else if (targetExam != null) {
+                        Text(
+                            stringResource(R.string.target_exam_line, targetExam.indexedLabel),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+
+            // Total Subject section (60% sur la matière totale)
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(R.string.total_subject_header),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    val rate = totalSt.rate
+                    if (rate != null) {
+                        Text(stringResource(R.string.stats_line, totalSt.present, totalSt.answered, rate))
+                    } else {
+                        Text(stringResource(R.string.no_data), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (totalSt.total > 0) {
+                        val totalText = if (totalSt.targetExam != null || totalSt.associatedExams.isNotEmpty()) {
+                            pluralStringResource(R.plurals.total_line, totalSt.total, totalSt.total, totalSt.allowed)
+                        } else {
+                            pluralStringResource(R.plurals.total_line_no_exam, totalSt.total, totalSt.total, totalSt.allowed)
+                        }
+                        Text(totalText, style = MaterialTheme.typography.bodySmall)
+                        val totalColor = if (totalSt.margin <= 0) Red else Green
+                        LinearProgressIndicator(
+                            progress = { if (totalSt.allowed > 0) (totalSt.absent.coerceAtMost(totalSt.allowed)) / totalSt.allowed.toFloat() else if (totalSt.absent > 0) 1f else 0f },
+                            color = totalColor,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        val msg = when {
+                            totalSt.margin >= 1 -> pluralStringResource(R.plurals.margin_skips, totalSt.margin, totalSt.margin)
+                            else -> stringResource(R.string.badge_must_attend)
+                        }
+                        Text(msg, color = totalColor, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // Per-type stats
             rows.forEach { StatRow(it) }
 
             Row(
@@ -658,9 +754,10 @@ fun SubjectCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                val currentLabels = associatedExams.map { it.indexedLabel }
                 val label = when {
-                    mappedTitle != null && isManual -> stringResource(R.string.exam_label_manual, mappedTitle)
-                    mappedTitle != null -> stringResource(R.string.exam_label_auto, mappedTitle)
+                    currentLabels.isNotEmpty() && isManual -> stringResource(R.string.exam_label_manual, currentLabels.joinToString(", "))
+                    currentLabels.isNotEmpty() -> stringResource(R.string.exam_label_auto, currentLabels.joinToString(", "))
                     else -> stringResource(R.string.exam_label_none)
                 }
                 Text(
@@ -694,13 +791,14 @@ fun SubjectCard(
     }
 
     if (showDialog) {
+        val currentMappedTitles = associatedExams.map { it.originalTitle }
         ExamSelectionDialog(
             courseSubject = subject,
-            currentMappedTitle = mappedTitle,
+            currentMappedTitles = currentMappedTitles,
             isManual = isManual,
             availableExams = availableExams,
             onDismiss = { showDialog = false },
-            onSelect = { selected ->
+            onSave = { selected ->
                 onExamMappingChanged(selected)
                 showDialog = false
             },
@@ -900,10 +998,10 @@ fun SettingsScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
             courseSubjects.forEach { subj ->
                 key(subj) {
                     var showSubjDialog by remember { mutableStateOf(false) }
-                    val currentMapped = ExamMatch.resolveExam(subj, ui.examMappings, ui.availableExams)
+                    val currentMapped = ExamMatch.resolveExams(subj, ui.examMappings, ui.availableExams)
                     val label = when {
-                        currentMapped.first != null && currentMapped.second -> stringResource(R.string.exam_label_manual, currentMapped.first!!)
-                        currentMapped.first != null -> stringResource(R.string.exam_label_auto, currentMapped.first!!)
+                        currentMapped.first.isNotEmpty() && currentMapped.second -> stringResource(R.string.exam_label_manual, currentMapped.first.joinToString(", "))
+                        currentMapped.first.isNotEmpty() -> stringResource(R.string.exam_label_auto, currentMapped.first.joinToString(", "))
                         else -> stringResource(R.string.exam_label_none)
                     }
                     Row(
@@ -921,12 +1019,12 @@ fun SettingsScreen(ui: UiState, vm: AppViewModel, onSignIn: () -> Unit) {
                     if (showSubjDialog) {
                         ExamSelectionDialog(
                             courseSubject = subj,
-                            currentMappedTitle = currentMapped.first,
+                            currentMappedTitles = currentMapped.first,
                             isManual = currentMapped.second,
                             availableExams = ui.availableExams,
                             onDismiss = { showSubjDialog = false },
-                            onSelect = { selected ->
-                                vm.setExamMapping(subj, selected)
+                            onSave = { selected ->
+                                vm.setExamMappings(subj, selected)
                                 showSubjDialog = false
                             },
                         )
@@ -1027,14 +1125,19 @@ fun SearchGroupsDialog(
 @Composable
 fun ExamSelectionDialog(
     courseSubject: String,
-    currentMappedTitle: String?,
+    currentMappedTitles: List<String>,
     isManual: Boolean,
     availableExams: List<String>,
     onDismiss: () -> Unit,
-    onSelect: (String) -> Unit,
+    onSave: (List<String>) -> Unit,
 ) {
-    val autoMatch = remember(courseSubject, availableExams) {
-        ExamMatch.findAutoMatch(courseSubject, availableExams)
+    val autoMatches = remember(courseSubject, availableExams) {
+        ExamMatch.findAllAutoMatches(courseSubject, availableExams)
+    }
+    var isAuto by remember { mutableStateOf(!isManual) }
+    var isNone by remember { mutableStateOf(isManual && currentMappedTitles.isEmpty()) }
+    var selectedExams by remember {
+        mutableStateOf(if (isManual) currentMappedTitles.toSet() else emptySet())
     }
 
     AlertDialog(
@@ -1051,8 +1154,8 @@ fun ExamSelectionDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                val autoLabel = if (autoMatch != null) {
-                    stringResource(R.string.exam_auto, autoMatch)
+                val autoLabel = if (autoMatches.isNotEmpty()) {
+                    stringResource(R.string.exam_auto, autoMatches.joinToString(", "))
                 } else {
                     stringResource(R.string.exam_auto_none)
                 }
@@ -1060,12 +1163,20 @@ fun ExamSelectionDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelect(ExamMatch.AUTO_MAPPING) }
+                        .clickable {
+                            isAuto = true
+                            isNone = false
+                            selectedExams = emptySet()
+                        }
                         .padding(vertical = 6.dp),
                 ) {
                     RadioButton(
-                        selected = !isManual,
-                        onClick = { onSelect(ExamMatch.AUTO_MAPPING) },
+                        selected = isAuto,
+                        onClick = {
+                            isAuto = true
+                            isNone = false
+                            selectedExams = emptySet()
+                        },
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(autoLabel, style = MaterialTheme.typography.bodyMedium)
@@ -1075,12 +1186,20 @@ fun ExamSelectionDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelect(ExamMatch.NONE_MAPPING) }
+                        .clickable {
+                            isNone = true
+                            isAuto = false
+                            selectedExams = emptySet()
+                        }
                         .padding(vertical = 6.dp),
                 ) {
                     RadioButton(
-                        selected = isManual && currentMappedTitle == null,
-                        onClick = { onSelect(ExamMatch.NONE_MAPPING) },
+                        selected = isNone,
+                        onClick = {
+                            isNone = true
+                            isAuto = false
+                            selectedExams = emptySet()
+                        },
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.exam_none), style = MaterialTheme.typography.bodyMedium)
@@ -1094,16 +1213,33 @@ fun ExamSelectionDialog(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                     availableExams.forEach { examTitle ->
+                        val isChecked = !isAuto && !isNone && examTitle in selectedExams
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onSelect(examTitle) }
-                                .padding(vertical = 6.dp),
+                                .clickable {
+                                    isAuto = false
+                                    isNone = false
+                                    selectedExams = if (isChecked) {
+                                        selectedExams - examTitle
+                                    } else {
+                                        selectedExams + examTitle
+                                    }
+                                }
+                                .padding(vertical = 4.dp),
                         ) {
-                            RadioButton(
-                                selected = isManual && currentMappedTitle == examTitle,
-                                onClick = { onSelect(examTitle) },
+                            Checkbox(
+                                checked = isChecked,
+                                onCheckedChange = { checked ->
+                                    isAuto = false
+                                    isNone = false
+                                    selectedExams = if (checked) {
+                                        selectedExams + examTitle
+                                    } else {
+                                        selectedExams - examTitle
+                                    }
+                                },
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(examTitle, style = MaterialTheme.typography.bodyMedium)
@@ -1119,9 +1255,23 @@ fun ExamSelectionDialog(
                 }
             }
         },
-        confirmButton = {
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.close))
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val result = when {
+                        isAuto -> listOf(ExamMatch.AUTO_MAPPING)
+                        isNone || selectedExams.isEmpty() -> listOf(ExamMatch.NONE_MAPPING)
+                        else -> selectedExams.toList()
+                    }
+                    onSave(result)
+                }
+            ) {
+                Text(stringResource(R.string.save_exam_mapping))
             }
         },
     )

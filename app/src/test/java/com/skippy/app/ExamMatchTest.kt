@@ -30,32 +30,35 @@ class ExamMatchTest {
 
     @Test
     fun testAutoMatch() {
-        val exams = listOf("EXAM DRG1", "EXAM IGAF", "EXAM PBS1")
+        val exams = listOf("EXAM DRG1", "EXAM IGAF", "EXAM PBS1", "EXAM PROG 1", "EXAM PROG 2")
         assertEquals("EXAM IGAF", ExamMatch.findAutoMatch("IGAF", exams))
         assertEquals("EXAM PBS1", ExamMatch.findAutoMatch("PBS", exams))
-        // "Droit Général" won't match "EXAM DRG1" automatically because acronyms differ
         assertEquals(null, ExamMatch.findAutoMatch("Droit Général", exams))
+
+        // Multi match
+        val progMatches = ExamMatch.findAllAutoMatches("PROG", exams)
+        assertEquals(listOf("EXAM PROG 1", "EXAM PROG 2"), progMatches)
     }
 
     @Test
     fun testResolveExamAutomaticAndManual() {
-        val exams = listOf("EXAM DRG1", "EXAM IGAF")
+        val exams = listOf("EXAM DRG1", "EXAM IGAF", "EXAM PROG 1", "EXAM PROG 2")
 
         // 1. Unmapped: fallback to auto
-        val autoRes = ExamMatch.resolveExam("IGAF", emptyMap(), exams)
-        assertEquals("EXAM IGAF", autoRes.first)
+        val autoRes = ExamMatch.resolveExams("PROG", emptyMap(), exams)
+        assertEquals(listOf("EXAM PROG 1", "EXAM PROG 2"), autoRes.first)
         assertFalse(autoRes.second) // isManual = false
 
-        // 2. Manually mapped: "Droit Général" -> "EXAM DRG1"
-        val manualMap = mapOf("Droit Général" to "EXAM DRG1")
-        val manualRes = ExamMatch.resolveExam("Droit Général", manualMap, exams)
-        assertEquals("EXAM DRG1", manualRes.first)
+        // 2. Manually mapped: "Droit Général" -> listOf("EXAM DRG1")
+        val manualMap = mapOf("Droit Général" to listOf("EXAM DRG1"))
+        val manualRes = ExamMatch.resolveExams("Droit Général", manualMap, exams)
+        assertEquals(listOf("EXAM DRG1"), manualRes.first)
         assertTrue(manualRes.second) // isManual = true
 
         // 3. Manually set to NONE
-        val noneMap = mapOf("IGAF" to ExamMatch.NONE_MAPPING)
-        val noneRes = ExamMatch.resolveExam("IGAF", noneMap, exams)
-        assertEquals(null, noneRes.first)
+        val noneMap = mapOf("IGAF" to listOf(ExamMatch.NONE_MAPPING))
+        val noneRes = ExamMatch.resolveExams("IGAF", noneMap, exams)
+        assertEquals(emptyList<String>(), noneRes.first)
         assertTrue(noneRes.second) // isManual = true
     }
 
@@ -89,9 +92,9 @@ class ExamMatchTest {
             sessions = sessions,
             att = emptyMap(),
             prefs = emptyMap(),
-            examMappings = mapOf("Droit Général" to "EXAM DRG1"),
+            examMappings = mapOf("Droit Général" to listOf("EXAM DRG1")),
             availableExams = listOf("EXAM DRG1"),
-            now = now,
+            now = 200L, // before exam at 500L
             pct = 60,
             typeLabel = { "CM" },
         )
@@ -106,7 +109,7 @@ class ExamMatchTest {
             sessions = sessions,
             att = emptyMap(),
             prefs = emptyMap(),
-            examMappings = mapOf("Droit Général" to ExamMatch.NONE_MAPPING),
+            examMappings = mapOf("Droit Général" to listOf(ExamMatch.NONE_MAPPING)),
             availableExams = listOf("EXAM DRG1"),
             now = now,
             pct = 60,

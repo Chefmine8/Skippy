@@ -137,4 +137,9 @@
     <string name="exam_label_manual">Examen : %1$s (Manuel)</string>
     <string name="exam_label_none">Examen : Aucun / Non détecté</string>
     <string name="exam_change_btn">Modifier l\'examen</string>
+    <string name="total_subject_header">Total matière</string>
+    <string name="next_exam_badge">Prochain examen</string>
+    <string name="exams_completed">Tous les examens sont passés (fin de semestre)</string>
+    <string name="save_exam_mapping">Enregistrer</string>
+    <string name="target_exam_line">Prochain examen : %1$s</string>
 </resources>

@@ -5,6 +5,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
+import kotlin.math.roundToInt
+
 /** PRESENT and JUSTIFIED both count as attended; ABSENT does not. */
 enum class Status(val code: String) {
     PRESENT("P"), ABSENT("A"), JUSTIFIED("J");
@@ -25,7 +27,33 @@ data class Session(
     val online: Boolean,
     val teachers: String,
     val groups: String = "",
+    val originalSubject: String = subject,
 )
+
+data class SubjectExamInfo(
+    val originalTitle: String,
+    val indexedLabel: String,
+    val start: Long,
+    val isNext: Boolean = false,
+)
+
+data class TotalSubjectStats(
+    val subject: String,
+    val present: Int,
+    val absent: Int,
+    val pending: Int,
+    val upcoming: Int,
+    val total: Int,
+    val allowed: Int,
+    val margin: Int,
+    val examFound: Boolean,
+    val associatedExams: List<SubjectExamInfo> = emptyList(),
+    val targetExam: SubjectExamInfo? = null,
+    val allExamsPassed: Boolean = false,
+) {
+    val answered: Int get() = present + absent
+    val rate: Int? get() = if (answered == 0) null else (present * 100f / answered).roundToInt()
+}
 
 /** Result of GET api/reservation/{id}/details. */
 data class ReservationDetails(

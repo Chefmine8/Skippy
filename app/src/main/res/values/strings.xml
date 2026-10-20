@@ -137,4 +137,9 @@
     <string name="exam_label_manual">Exam: %1$s (Manual)</string>
     <string name="exam_label_none">Exam: None / Not detected</string>
     <string name="exam_change_btn">Change exam</string>
+    <string name="total_subject_header">Total Subject</string>
+    <string name="next_exam_badge">Next exam</string>
+    <string name="exams_completed">All exams completed (term end)</string>
+    <string name="save_exam_mapping">Save</string>
+    <string name="target_exam_line">Next exam: %1$s</string>
 </resources>

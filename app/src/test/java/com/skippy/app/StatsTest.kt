@@ -1,0 +1,228 @@
+package com.skippy.app
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class StatsTest {
+
+    @Test
+    fun testTotalSubjectStatsAggregation() {
+        // Subject with CM and TD sessions
+        val sessions = listOf(
+            // CM sessions (typeId = 3)
+            Session("cm1", "Maths", 3, 100L, 200L, "", false, ""),
+            Session("cm2", "Maths", 3, 200L, 300L, "", false, ""),
+            Session("cm3", "Maths", 3, 300L, 400L, "", false, ""),
+            Session("cm4", "Maths", 3, 400L, 500L, "", false, ""),
+            Session("cm5", "Maths", 3, 500L, 600L, "", false, ""),
+            // TD sessions (typeId = 10)
+            Session("td1", "Maths", 10, 150L, 250L, "", false, ""),
+            Session("td2", "Maths", 10, 250L, 350L, "", false, ""),
+            Session("td3", "Maths", 10, 350L, 450L, "", false, ""),
+            Session("td4", "Maths", 10, 450L, 550L, "", false, ""),
+            Session("td5", "Maths", 10, 550L, 650L, "", false, ""),
+            // Exam session
+            Session("e1", "EXAM MATHS", EXAM_TYPE_ID, 800L, 900L, "", false, ""),
+        )
+
+        val att = mapOf(
+            "cm1" to Status.PRESENT,
+            "cm2" to Status.ABSENT,
+            "td1" to Status.PRESENT,
+            "td2" to Status.PRESENT,
+        )
+
+        val stats = Stats.compute(
+            sessions = sessions,
+            att = att,
+            prefs = emptyMap(),
+            examMappings = emptyMap<String, List<String>>(),
+            availableExams = listOf("EXAM MATHS"),
+            now = 350L,
+            pct = 60,
+            typeLabel = { if (it == 3) "CM" else "TD" },
+        )
+
+        assertEquals(2, stats.size)
+        val cmRow = stats.first { it.typeId == 3 }
+        val tdRow = stats.first { it.typeId == 10 }
+
+        // CM: 5 total, allowed = 5 * 40 / 100 = 2, 1 absent -> margin = 1
+        assertEquals(5, cmRow.total)
+        assertEquals(2, cmRow.allowed)
+        assertEquals(1, cmRow.absent)
+        assertEquals(1, cmRow.margin)
+
+        // TD: 5 total, allowed = 2, 0 absent -> margin = 2
+        assertEquals(5, tdRow.total)
+        assertEquals(2, tdRow.allowed)
+        assertEquals(0, tdRow.absent)
+        assertEquals(2, tdRow.margin)
+
+        // Compute total stats across the whole subject (CM + TD)
+        val totalSt = Stats.totalStats(stats, 60)
+        assertEquals("Maths", totalSt.subject)
+        assertEquals(10, totalSt.total)
+        // allowed = 10 * 40 / 100 = 4
+        assertEquals(4, totalSt.allowed)
+        // present = cm1 (1) + td1, td2 (2) = 3
+        assertEquals(3, totalSt.present)
+        // absent = cm2 (1) = 1
+        assertEquals(1, totalSt.absent)
+        // margin = 4 - 1 = 3
+        assertEquals(3, totalSt.margin)
+        // rate = 3 / (3 + 1) = 75%
+        assertEquals(75, totalSt.rate)
+    }
+
+    @Test
+    fun testMergeSubjectsLinkedToSameExam() {
+        val sessions = listOf(
+            Session("a1", "Algorithmique", 3, 100L, 200L, "", false, ""),
+            Session("a2", "Algorithmique", 3, 200L, 300L, "", false, ""),
+            Session("s1", "Structures de données", 3, 150L, 250L, "", false, ""),
+            Session("s2", "Structures de données", 3, 250L, 350L, "", false, ""),
+            Session("e1", "EXAM INFO", EXAM_TYPE_ID, 600L, 700L, "", false, ""),
+        )
+
+        // Map both subjects to the same exam "EXAM INFO"
+        val mappings = mapOf(
+            "Algorithmique" to listOf("EXAM INFO"),
+            "Structures de données" to listOf("EXAM INFO"),
+        )
+
+        val stats = Stats.compute(
+            sessions = sessions,
+            att = emptyMap(),
+            prefs = emptyMap(),
+            examMappings = mappings,
+            availableExams = listOf("EXAM INFO"),
+            now = 50L,
+            pct = 60,
+            typeLabel = { "CM" },
+        )
+
+        // The two subjects must be merged into one single subject entry
+        assertEquals(1, stats.size)
+        val merged = stats.first()
+        assertEquals("INFO", merged.subject)
+        assertEquals(4, merged.total) // 2 + 2 sessions merged
+        assertEquals(1, merged.allowed) // floor(4 * 0.4) = 1
+    }
+
+    @Test
+    fun testMultiExamIndexingAndTargetingNextExamWithoutReset() {
+        val sessions = listOf(
+            // Period 1 sessions before Exam 1 (t = 500)
+            Session("m1", "Maths", 3, 100L, 200L, "", false, ""),
+            Session("m2", "Maths", 3, 200L, 300L, "", false, ""),
+            Session("m3", "Maths", 3, 300L, 400L, "", false, ""),
+            Session("m4", "Maths", 3, 400L, 500L, "", false, ""),
+            Session("e1", "EXAM MATHS 1", EXAM_TYPE_ID, 500L, 600L, "", false, ""),
+
+            // Period 2 sessions between Exam 1 and Exam 2 (t = 1000)
+            Session("m5", "Maths", 3, 600L, 700L, "", false, ""),
+            Session("m6", "Maths", 3, 700L, 800L, "", false, ""),
+            Session("m7", "Maths", 3, 800L, 900L, "", false, ""),
+            Session("m8", "Maths", 3, 900L, 1000L, "", false, ""),
+            Session("e2", "EXAM MATHS 2", EXAM_TYPE_ID, 1000L, 1100L, "", false, ""),
+
+            // Post Exam 2 sessions
+            Session("m9", "Maths", 3, 1200L, 1300L, "", false, ""),
+        )
+
+        val att = mapOf(
+            "m1" to Status.ABSENT,   // Absent in period 1
+            "m5" to Status.ABSENT,   // Absent in period 2
+        )
+
+        val exams = listOf("EXAM MATHS 1", "EXAM MATHS 2")
+
+        // CASE 1: Before Exam 1 (now = 250L)
+        val statsBeforeE1 = Stats.compute(
+            sessions = sessions,
+            att = att,
+            prefs = emptyMap(),
+            examMappings = emptyMap(), // auto-matches both exams
+            availableExams = exams,
+            now = 250L,
+            pct = 60,
+            typeLabel = { "CM" },
+        )
+
+        assertEquals(1, statsBeforeE1.size)
+        val s1 = statsBeforeE1.first()
+
+        // 2 exams associated and indexed as "Maths 1" and "Maths 2"
+        assertEquals(2, s1.associatedExams.size)
+        assertEquals("Maths 1", s1.associatedExams[0].indexedLabel)
+        assertEquals("Maths 2", s1.associatedExams[1].indexedLabel)
+
+        // Target exam is Maths 1
+        assertNotNull(s1.targetExam)
+        assertEquals("Maths 1", s1.targetExam?.indexedLabel)
+        assertTrue(s1.associatedExams[0].isNext)
+        assertFalse(s1.associatedExams[1].isNext)
+        assertFalse(s1.allExamsPassed)
+
+        // Total sessions up to Exam 1 = 4 sessions (m1..m4)
+        assertEquals(4, s1.total)
+        // Allowed absences = floor(4 * 0.4) = 1
+        assertEquals(1, s1.allowed)
+        // 1 absent so far (m1) -> margin = 0
+        assertEquals(1, s1.absent)
+        assertEquals(0, s1.margin)
+
+        // CASE 2: After Exam 1 has passed, but before Exam 2 (now = 750L)
+        val statsBeforeE2 = Stats.compute(
+            sessions = sessions,
+            att = att,
+            prefs = emptyMap(),
+            examMappings = emptyMap(),
+            availableExams = exams,
+            now = 750L,
+            pct = 60,
+            typeLabel = { "CM" },
+        )
+
+        val s2 = statsBeforeE2.first()
+        // Target exam is now Maths 2
+        assertNotNull(s2.targetExam)
+        assertEquals("Maths 2", s2.targetExam?.indexedLabel)
+        assertFalse(s2.associatedExams[0].isNext)
+        assertTrue(s2.associatedExams[1].isNext)
+        assertFalse(s2.allExamsPassed)
+
+        // Total sessions up to Exam 2 = 8 sessions (m1..m4 + m5..m8)
+        assertEquals(8, s2.total)
+        // Allowed absences up to Exam 2 = floor(8 * 0.4) = 3
+        assertEquals(3, s2.allowed)
+        // Counter does NOT reset: both m1 (period 1) and m5 (period 2) are counted!
+        assertEquals(2, s2.absent)
+        // Margin = 3 - 2 = 1
+        assertEquals(1, s2.margin)
+
+        // CASE 3: All exams have passed (now = 1400L)
+        val statsAfterAllExams = Stats.compute(
+            sessions = sessions,
+            att = att,
+            prefs = emptyMap(),
+            examMappings = emptyMap(),
+            availableExams = exams,
+            now = 1400L,
+            pct = 60,
+            typeLabel = { "CM" },
+        )
+
+        val s3 = statsAfterAllExams.first()
+        assertNull(s3.targetExam)
+        assertTrue(s3.allExamsPassed)
+        // All sessions of the semester included (9 sessions)
+        assertEquals(9, s3.total)
+        assertEquals(3, s3.allowed) // floor(9 * 0.4) = 3
+    }
+}
